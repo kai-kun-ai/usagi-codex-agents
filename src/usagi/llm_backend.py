@@ -38,7 +38,11 @@ class LLM:
 
     def _ollama(self, prompt: str) -> str:
         url = self.cfg.ollama_url.rstrip("/") + "/api/generate"
-        r = requests.post(url, json={"model": self.cfg.model, "prompt": prompt, "stream": False}, timeout=60)
+        r = requests.post(
+            url,
+            json={"model": self.cfg.model, "prompt": prompt, "stream": False},
+            timeout=60,
+        )
         r.raise_for_status()
         data = r.json()
         return str(data.get("response", ""))
