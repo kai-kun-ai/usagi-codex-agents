@@ -11,12 +11,21 @@ Markdownの指示書を渡すと、**社長うさぎ(計画)** → **実装う�
 - `git apply` で差分を適用して成果物を作成
 - 実行ログ + レポート(Markdown)出力
 
-## インストール
+## セットアップ（Python）
+
+### uv（推奨）
 
 ```bash
-npm i
-npm run build
-npm link
+uv venv
+uv pip install -e .
+```
+
+### pip
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -e .
 ```
 
 ### 必要な環境変数
@@ -25,21 +34,11 @@ npm link
 export OPENAI_API_KEY="..."
 ```
 
-## Dockerで使う
-
-Dockerが入っていれば、ローカルにnode環境を用意しなくても動かせます。
-
-```bash
-docker build -t usagi .
-# カレントのspecs/をコンテナに渡して実行
-docker run --rm -e OPENAI_API_KEY="$OPENAI_API_KEY" -v "$PWD":/work -w /work usagi run specs/sample.md --workdir ./out/sample --out ./out/report.md
-```
-
 ## 使い方
 
 ### 1) 指示書を作る
 
-例: `specs/hello.md`
+例: `specs/sample.md`
 
 ```md
 ---
@@ -48,12 +47,12 @@ project: hello-usagi
 
 ## 目的
 
-README と簡単なCLIを作って。
+README と簡単なスクリプト/CLIを作って。
 
 ## やること
 
 - README.md を作成
-- Node.jsで `hello` と表示するCLIを作る
+- Pythonで `hello` と表示するスクリプト/CLIを作る
 
 ## 制約
 
@@ -63,16 +62,18 @@ README と簡単なCLIを作って。
 ### 2) 実行
 
 ```bash
-usagi run specs/hello.md --workdir ./out/hello --out ./out/report.md
+usagi run specs/sample.md --workdir ./out/hello --out ./out/report.md
 ```
 
 - `--out` を省略すると標準出力にレポートを出します
-- `--dry-run` を付けると計画だけ出します
+- `--dry-run` を付けると計画だけ出します（APIは呼びません）
+- `--offline` を付けると OpenAI APIを呼ばずに動作確認できます（ダミーの計画/差分を使います）
 
-## 開発
+## Lint / Test
 
 ```bash
-npm run dev -- run specs/hello.md --workdir ./out/hello
+ruff check .
+pytest
 ```
 
 ## 注意

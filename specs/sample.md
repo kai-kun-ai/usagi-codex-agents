@@ -9,7 +9,7 @@ project: sample-usagi
 ## やること
 
 - README.md を生成
-- src/index.js を作り、"hello usagi" を出力する
+- src/index.py を作り、"hello usagi" を出力する
 
 ## 制約
 
