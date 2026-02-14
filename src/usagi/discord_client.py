@@ -63,7 +63,10 @@ class DiscordClient:
             if message.author.bot:
                 return
 
-            if self._cfg.channel_allowlist and message.channel.id not in self._cfg.channel_allowlist:
+            if (
+                self._cfg.channel_allowlist
+                and message.channel.id not in self._cfg.channel_allowlist
+            ):
                 return
             if self._cfg.user_allowlist and message.author.id not in self._cfg.user_allowlist:
                 return
@@ -87,7 +90,10 @@ class DiscordClient:
         channel = self._client.get_channel(self._cfg.channel_id())
         if channel is None:
             raise RuntimeError("Discord channel not found")
-        await channel.send(format_message(agent_name, text), allowed_mentions=discord.AllowedMentions.none())
+        await channel.send(
+            format_message(agent_name, text),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
 
     def run(self) -> None:
         self._client.run(self._cfg.token())
