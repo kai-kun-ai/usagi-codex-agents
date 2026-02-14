@@ -1,0 +1,22 @@
+# usagi.runtime.toml の設定例
+
+[mode]
+name = "manual_merge"
+
+[merge]
+# never | ask_human | auto_on_ci_green
+policy = "ask_human"
+require_human_on = ["discord", "tokens", "security"]
+
+[vote]
+enabled = true
+threshold = "2of3"
+voters = ["boss", "ghost_boss", "reviewer"]
+ask_human_on_tie = true
+
+[autopilot]
+enabled = false
+inputs_dir = "inputs"
+outputs_dir = "outputs"
+work_root = "work"
+stop_commands = ["STOP_USAGI", "usagi autopilot stop"]
