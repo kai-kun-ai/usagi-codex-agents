@@ -14,8 +14,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import discord
+
+from usagi.autopilot import request_stop
+from usagi.boss_inbox import BossInput, write_boss_input
 
 
 def sanitize_mentions(text: str) -> str:
@@ -33,6 +37,8 @@ class DiscordConfig:
     user_allowlist: list[int] = field(default_factory=list)
     channel_allowlist: list[int] = field(default_factory=list)
     stop_phrases: list[str] = field(default_factory=lambda: ["STOP_USAGI"])
+
+    project_root: str = "."  # STOPやinbox書き込み先
 
     def token(self) -> str:
         v = os.environ.get(self.token_env, "")
@@ -75,15 +81,29 @@ class DiscordClient:
             if not content:
                 return
 
+            root = Path(self._cfg.project_root)
+
             # STOP
             if content in self._cfg.stop_phrases:
-                # stop integration is handled in later PR
+                request_stop(root)
                 return
 
             # mention -> boss input
             me = self._client.user
             if me and me in message.mentions:
-                # boss input handling will be wired later
+                # remove mention tokens from content (simple)
+                stripped = content.replace(f"<@{me.id}>", "").replace(
+                    f"<@!{me.id}>", ""
+                )
+                stripped = stripped.strip()
+                if stripped:
+                    write_boss_input(
+                        root,
+                        BossInput(
+                            source="discord_mention",
+                            text=stripped,
+                        ),
+                    )
                 return
 
     async def send(self, agent_name: str, text: str) -> None:
