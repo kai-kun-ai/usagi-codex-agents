@@ -19,16 +19,17 @@ def test_load_runtime_from_file(tmp_path: Path) -> None:
 [mode]
 name = "auto"
 
+[system]
+gh_enabled = false
+docker_required = true
+boss_id = "boss"
+
 [merge]
 policy = "auto_on_ci_green"
 require_human_on = ["security"]
 
 [vote]
 enabled = false
-
-[system]
-gh_enabled = false
-docker_required = true
 
 [autopilot]
 enabled = true
@@ -49,3 +50,4 @@ stop_commands = ["STOP_USAGI"]
     assert mode.autopilot.inputs_dir == "in"
     assert mode.gh_enabled is False
     assert mode.docker_required is True
+    assert mode.boss_id == "boss"
