@@ -199,6 +199,15 @@ def input(
 
 
 @app.command()
+def mcp() -> None:
+    """stdin MCP wrapper を起動（簡易）。"""
+    from usagi.mcp_stdin import StdinMCP, Tool
+
+    tools = [Tool(name="echo", description="echo text", schema={"type": "object"})]
+    StdinMCP(tools).run()
+
+
+@app.command()
 def validate(
     spec: Path = typer.Argument(
         ...,
