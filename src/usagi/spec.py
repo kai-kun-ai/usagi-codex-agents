@@ -101,9 +101,9 @@ def _pick_bullets(body: str, section_names: list[str]) -> list[str]:
         return []
     out: list[str] = []
     for line in sec.splitlines():
-        l = line.strip()
-        if l.startswith("- "):
-            out.append(l.removeprefix("- ").strip())
-        elif l.startswith("* "):
-            out.append(l.removeprefix("* ").strip())
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            out.append(stripped.removeprefix("- ").strip())
+        elif stripped.startswith("* "):
+            out.append(stripped.removeprefix("* ").strip())
     return out
