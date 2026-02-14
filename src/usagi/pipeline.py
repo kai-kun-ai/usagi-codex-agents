@@ -1,61 +1,85 @@
+"""パイプライン: 社長うさぎ → 実装うさぎ → 監査うさぎ の順で処理。"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import subprocess
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Protocol
 
-from openai import OpenAI
-
+from usagi.agents import (
+    JISSOU_USAGI,
+    KANSA_USAGI,
+    SHACHO_USAGI,
+    AgentMessage,
+    LLMBackend,
+    OfflineBackend,
+    OpenAIBackend,
+)
 from usagi.spec import UsagiSpec
 
 
 class Ui(Protocol):
     def section(self, title: str) -> None: ...
-
     def log(self, line: str) -> None: ...
-
     def step(self, title: str): ...
 
 
 @dataclass
 class RunResult:
     report: str
+    messages: list[AgentMessage] = field(default_factory=list)
 
 
-def run_pipeline(*, spec: UsagiSpec, workdir: Path, model: str, dry_run: bool, offline: bool, ui: Ui) -> RunResult:
-    ui.section(f"うさぎさん株式会社: 実行開始 / project={spec.project}")
+def run_pipeline(
+    *,
+    spec: UsagiSpec,
+    workdir: Path,
+    model: str,
+    dry_run: bool,
+    offline: bool,
+    ui: Ui,
+) -> RunResult:
+    backend: LLMBackend = OfflineBackend() if offline else OpenAIBackend()
+    messages: list[AgentMessage] = []
+    started = datetime.now(tz=timezone.utc).isoformat()
+
+    ui.section(f"🐰 うさぎさん株式会社: 実行開始 / project={spec.project}")
     ui.log(f"workdir: {workdir}")
     ui.log(f"model: {model}")
-    ui.log(f"dry-run: {dry_run}")
-    ui.log(f"offline: {offline}")
+    ui.log(f"dry-run: {dry_run} / offline: {offline}")
 
-    plan_step = ui.step("社長うさぎが計画を作成中...")
-    plan = make_plan_offline(spec) if (offline or dry_run) else make_plan(spec, model=model)
-    plan_step.succeed("計画ができました")
+    # ── 社長うさぎ: 計画 ──
+    plan_step = ui.step("🐰 社長うさぎが計画を作成中...")
+    plan_prompt = _build_plan_prompt(spec)
+    if dry_run:
+        plan_msg = AgentMessage(agent_name="社長うさぎ", role="planner", content="(dry-run: 計画スキップ)")
+    else:
+        plan_msg = SHACHO_USAGI.run(user_prompt=plan_prompt, model=model, backend=backend)
+    messages.append(plan_msg)
+    plan_step.succeed("社長うさぎ: 計画完了")
 
     if dry_run:
         return RunResult(
-            report=render_report(
-                spec=spec,
-                workdir=workdir,
-                plan=plan,
-                actions=[],
-                notes=["dry-runのため実行はしていません（offline計画）"],
-            )
+            report=_render_report(spec=spec, workdir=workdir, started=started, messages=messages, actions=[]),
+            messages=messages,
         )
 
-    workdir.mkdir(parents=True, exist_ok=True)
+    # ── 実装うさぎ: 差分生成 ──
+    impl_step = ui.step("🐰 実装うさぎが生成/編集案を作成中...")
+    impl_prompt = f"社長うさぎの計画:\n\n{plan_msg.content}\n\nプロジェクト名: {spec.project}"
+    impl_msg = JISSOU_USAGI.run(user_prompt=impl_prompt, model=model, backend=backend)
+    messages.append(impl_msg)
+    impl_step.succeed("実装うさぎ: 変更案完了")
 
-    impl_step = ui.step("実装うさぎが生成/編集案を作成中...")
-    patch = make_patch_offline(spec) if offline else make_patch(spec, plan=plan, model=model)
-    impl_step.succeed("変更案ができました")
-
-    apply_step = ui.step("変更を適用中...")
+    # ── 差分適用 ──
     actions: list[str] = []
+    apply_step = ui.step("変更を適用中...")
+    workdir.mkdir(parents=True, exist_ok=True)
     patch_path = workdir / ".usagi.patch"
-    patch_path.write_text(patch, encoding="utf-8")
-    actions.append(f"write {patch_path}")
+    patch_path.write_text(impl_msg.content, encoding="utf-8")
+    actions.append(f"write {patch_path.name}")
 
     _git_init(workdir)
     try:
@@ -66,31 +90,44 @@ def run_pipeline(*, spec: UsagiSpec, workdir: Path, model: str, dry_run: bool, o
             text=True,
             capture_output=True,
         )
-        actions.append("git apply .usagi.patch")
+        actions.append("git apply OK")
         apply_step.succeed("適用しました")
     except subprocess.CalledProcessError as e:
+        actions.append(f"git apply FAILED: {e.stderr.strip()}")
         apply_step.fail("適用に失敗")
-        actions.append(f"patch apply failed: {e.stderr.strip()}")
 
-    chk_step = ui.step("監査うさぎが簡易チェック中...")
+    # ── 監査うさぎ: レビュー ──
+    review_step = ui.step("🐰 監査うさぎがレビュー中...")
     listing = subprocess.run(
-        ["bash", "-lc", "ls -la"],
+        ["find", ".", "-not", "-path", "./.git/*", "-not", "-path", "./.git"],
         cwd=workdir,
-        check=True,
         text=True,
         capture_output=True,
-    ).stdout
-    actions.append("ls -la")
-    chk_step.succeed("チェック完了")
+        check=False,
+    ).stdout.strip()
+    review_prompt = (
+        f"実装うさぎが以下の差分を適用しました:\n\n{impl_msg.content}\n\n"
+        f"作業ディレクトリの内容:\n```\n{listing}\n```\n\nレビューしてください。"
+    )
+    review_msg = KANSA_USAGI.run(user_prompt=review_prompt, model=model, backend=backend)
+    messages.append(review_msg)
+    actions.append("review done")
+    review_step.succeed("監査うさぎ: レビュー完了")
 
     return RunResult(
-        report=render_report(
-            spec=spec,
-            workdir=workdir,
-            plan=plan,
-            actions=actions,
-            notes=["作業ディレクトリの一覧:\n\n```\n" + listing + "\n```"],
-        )
+        report=_render_report(spec=spec, workdir=workdir, started=started, messages=messages, actions=actions),
+        messages=messages,
+    )
+
+
+def _build_plan_prompt(spec: UsagiSpec) -> str:
+    tasks = "\n".join([f"- {t}" for t in spec.tasks]) if spec.tasks else "(なし)"
+    constraints = "\n".join([f"- {c}" for c in spec.constraints]) if spec.constraints else "(なし)"
+    return (
+        f"目的:\n{spec.objective}\n\n"
+        f"背景:\n{spec.context}\n\n"
+        f"やること:\n{tasks}\n\n"
+        f"制約:\n{constraints}\n"
     )
 
 
@@ -100,84 +137,51 @@ def _git_init(workdir: Path) -> None:
     subprocess.run(["git", "init"], cwd=workdir, check=True, text=True, capture_output=True)
 
 
-def make_plan_offline(spec: UsagiSpec) -> str:
-    steps = "\n".join([f"{i + 1}. {t}" for i, t in enumerate(spec.tasks)]) if spec.tasks else "1. READMEを作成"
-    return (
-        "## 方針\n\n"
-        "- まずは最小の成果物を作り、動くことを確認してから拡張します。\n\n"
-        "## 作業ステップ\n\n"
-        f"{steps}\n\n"
-        "## リスク\n\n"
-        "- OpenAI APIキー未設定/権限不足\n"
-        "- unified diff が適用できない差分が生成される可能性\n\n"
-        "## 完了条件\n\n"
-        "- 指示されたファイルが作成され、簡易チェックが通ること\n"
-    )
+def _render_report(
+    *,
+    spec: UsagiSpec,
+    workdir: Path,
+    started: str,
+    messages: list[AgentMessage],
+    actions: list[str],
+) -> str:
+    lines: list[str] = [
+        "# 🐰 うさぎさん株式会社レポート",
+        "",
+        f"- 開始: {started}",
+        f"- project: {spec.project}",
+        f"- workdir: {workdir}",
+        "",
+        "## 目的",
+        "",
+        spec.objective or "(未記載)",
+        "",
+        "## 依頼内容(抽出)",
+        "",
+    ]
+    for t in spec.tasks:
+        lines.append(f"- {t}")
+    if not spec.tasks:
+        lines.append("(なし)")
+    lines.append("")
 
+    # エージェント会話ログ
+    lines.append("## エージェント会話ログ")
+    lines.append("")
+    for msg in messages:
+        emoji = {"planner": "👔", "coder": "💻", "reviewer": "🔍"}.get(msg.role, "🐰")
+        lines.append(f"### {emoji} {msg.agent_name} ({msg.role})")
+        lines.append("")
+        lines.append(msg.content)
+        lines.append("")
 
-def make_plan(spec: UsagiSpec, *, model: str) -> str:
-    client = OpenAI()
-    prompt = (
-        "あなたは『うさぎさん株式会社』の社長うさぎです。\n\n"
-        f"目的:\n{spec.objective}\n\n"
-        f"背景:\n{spec.context}\n\n"
-        "やること(箇条書き):\n" + "\n".join([f"- {t}" for t in spec.tasks]) + "\n\n"
-        "制約:\n" + "\n".join([f"- {c}" for c in spec.constraints]) + "\n\n"
-        "出力: 実行計画をMarkdownで。セクション: 方針 / 作業ステップ / リスク / 完了条件。"
-    )
-    resp = client.responses.create(model=model, input=prompt)
-    return resp.output_text or ""
+    # 実行ログ
+    lines.append("## 実行ログ")
+    lines.append("")
+    for a in actions:
+        lines.append(f"- {a}")
+    if not actions:
+        lines.append("(なし)")
+    lines.append("")
 
-
-def make_patch_offline(spec: UsagiSpec) -> str:
-    project = spec.project
-    readme = f"# {project}\n\nこれは『うさぎさん株式会社(usagi)』のオフラインモードで生成されたサンプルです。\n"
-    readme_lines = "\n".join(["+" + line for line in readme.splitlines()]) + "\n"
-    return (
-        "diff --git a/README.md b/README.md\n"
-        "new file mode 100644\n"
-        "index 0000000..1111111\n"
-        "--- /dev/null\n"
-        "+++ b/README.md\n"
-        "@@ -0,0 +1,3 @@\n"
-        + readme_lines
-    )
-
-
-def make_patch(spec: UsagiSpec, *, plan: str, model: str) -> str:
-    client = OpenAI()
-    prompt = (
-        "あなたは『うさぎさん株式会社』の実装うさぎです。\n\n"
-        "次の計画に沿って、最小構成の成果物を作ってください。\n\n"
-        f"計画:\n{plan}\n\n"
-        "要件:\n"
-        "- 変更は 'Unified diff' 形式で出力してください（git diffと同様）。\n"
-        "- ルートに README.md を必ず作る。\n"
-        "- 可能なら動くサンプル(簡単なCLIやスクリプト)も含める。\n"
-        "- 文章は日本語。\n\n"
-        f"プロジェクト名: {spec.project}\n"
-    )
-    resp = client.responses.create(model=model, input=prompt)
-    return resp.output_text or ""
-
-
-def render_report(*, spec: UsagiSpec, workdir: Path, plan: str, actions: list[str], notes: list[str]) -> str:
-    return (
-        "# うさぎさん株式会社レポート\n\n"
-        f"- project: {spec.project}\n"
-        f"- workdir: {workdir}\n\n"
-        "## 目的\n\n"
-        f"{spec.objective or '(未記載)'}\n\n"
-        "## 依頼内容(抽出)\n\n"
-        + ("\n".join([f"- {t}" for t in spec.tasks]) if spec.tasks else "(なし)")
-        + "\n\n"
-        "## 社長うさぎの計画\n\n"
-        + (plan or "(空)")
-        + "\n\n"
-        "## 実行ログ\n\n"
-        + ("\n".join([f"- {a}" for a in actions]) if actions else "(なし)")
-        + "\n\n"
-        "## メモ\n\n"
-        + "\n\n".join(notes)
-        + "\n"
-    )
+    return "\n".join(lines) + "\n"
