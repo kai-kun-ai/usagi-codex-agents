@@ -26,6 +26,10 @@ require_human_on = ["security"]
 [vote]
 enabled = false
 
+[system]
+gh_enabled = false
+docker_required = true
+
 [autopilot]
 enabled = true
 inputs_dir = "in"
@@ -43,3 +47,5 @@ stop_commands = ["STOP_USAGI"]
     assert mode.vote.enabled is False
     assert mode.autopilot.enabled is True
     assert mode.autopilot.inputs_dir == "in"
+    assert mode.gh_enabled is False
+    assert mode.docker_required is True

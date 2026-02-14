@@ -51,6 +51,9 @@ class RuntimeMode:
     vote: VotePolicy = field(default_factory=VotePolicy)
     autopilot: AutopilotConfig = field(default_factory=AutopilotConfig)
 
+    gh_enabled: bool = False
+    docker_required: bool = True
+
 
 def load_runtime(path: Path | None = None) -> RuntimeMode:
     if path is None:
@@ -64,6 +67,8 @@ def load_runtime(path: Path | None = None) -> RuntimeMode:
     merge = raw.get("merge", {})
     vote = raw.get("vote", {})
     autopilot = raw.get("autopilot", {})
+
+    system = raw.get("system", {})
 
     return RuntimeMode(
         name=str(mode.get("name", "manual")),
@@ -84,4 +89,6 @@ def load_runtime(path: Path | None = None) -> RuntimeMode:
             work_root=str(autopilot.get("work_root", "work")),
             stop_commands=list(autopilot.get("stop_commands", []) or ["STOP_USAGI"]),
         ),
+        gh_enabled=bool(system.get("gh_enabled", False)),
+        docker_required=bool(system.get("docker_required", True)),
     )

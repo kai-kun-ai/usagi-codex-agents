@@ -14,6 +14,12 @@ threshold = "2of3"
 voters = ["boss", "ghost_boss", "reviewer"]
 ask_human_on_tie = true
 
+[system]
+# GitHub操作を有効にするか（PR作成など）
+gh_enabled = false
+# Docker前提で動かすか（debug以外はtrue推奨）
+docker_required = true
+
 [autopilot]
 enabled = false
 inputs_dir = "inputs"
