@@ -10,7 +10,9 @@ dependencies = [
   "rich>=13.7.1",
   "pyyaml>=6.0.2",
   "watchdog>=4.0.1",
+  "discord.py>=2.4.0",
 ]
+
 
 [project.optional-dependencies]
 # Python 3.11+ は tomllib があるので不要だが、互換用
