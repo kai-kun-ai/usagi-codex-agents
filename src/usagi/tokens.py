@@ -11,10 +11,10 @@
 
 from __future__ import annotations
 
+import itertools
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-import itertools
 
 try:
     import tomllib

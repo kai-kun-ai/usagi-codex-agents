@@ -1,7 +1,8 @@
 """tokens モジュールのテスト。"""
 
-import os
 from pathlib import Path
+
+import pytest
 
 from usagi.tokens import load_tokens
 
@@ -50,8 +51,6 @@ def test_missing_tokens_raises(monkeypatch) -> None:
 
     pool = load_tokens(None)
     assert pool.available is False
-    try:
+
+    with pytest.raises(RuntimeError):
         pool.next_key()
-        assert False, "should raise"
-    except RuntimeError:
-        assert True
