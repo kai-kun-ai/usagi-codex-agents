@@ -8,8 +8,10 @@ import typer
 from rich.console import Console
 
 from usagi.autopilot import clear_stop, request_stop
+from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
+from usagi.state import load_status
 from usagi.validate import validate_spec
 from usagi.watch import watch_inputs
 
@@ -121,6 +123,7 @@ def watch(
         offline=offline,
         recursive=recursive,
         stop_file=Path(".usagi/STOP"),
+        status_path=Path(".usagi/status.json"),
     )
 
 
@@ -148,6 +151,7 @@ def autopilot_start(
         offline=offline,
         recursive=True,
         stop_file=Path(".usagi/STOP"),
+        status_path=Path(".usagi/status.json"),
     )
 
 
@@ -156,6 +160,42 @@ def autopilot_stop() -> None:
     """autopilot stop（停止要求を出す）。"""
     p = request_stop(Path("."))
     console.print(f"stop requested: {p}", style="yellow")
+
+
+@app.command()
+def status(
+    status_path: Path = typer.Option(Path(".usagi/status.json"), "--status", help="状態ファイル"),
+) -> None:
+    """稼働中/待機中のうさぎを表示する。"""
+    st = load_status(status_path)
+    if not st.agents:
+        console.print("(no status)")
+        return
+
+    for a in st.agents.values():
+        console.print(f"- {a.name} ({a.agent_id}): {a.state} {a.task}")
+
+
+@app.command()
+def input(
+    text: str = typer.Option("", "--text", help="投入するテキスト（空なら対話）"),
+) -> None:
+    """boss input を投入（チャット入力）。"""
+    if not text:
+        console.print("入力してください（空行で終了）:")
+        lines = []
+        while True:
+            line = typer.prompt("", default="", show_default=False)
+            if not line:
+                break
+            lines.append(line)
+        text = "\n".join(lines).strip()
+
+    if not text:
+        return
+
+    p = write_boss_input(Path("."), BossInput(source="cli", text=text))
+    console.print(f"saved: {p}", style="green")
 
 
 @app.command()
