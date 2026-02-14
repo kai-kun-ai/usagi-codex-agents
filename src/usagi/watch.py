@@ -21,8 +21,10 @@ from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+from usagi.announce import announce
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
+from usagi.state import AgentStatus, load_status, save_status
 from usagi.validate import validate_spec
 
 
@@ -87,6 +89,7 @@ class WatchWorker:
         model: str,
         dry_run: bool,
         offline: bool,
+        status_path: Path | None,
     ) -> None:
         self.q = q
         self.outputs_dir = outputs_dir
@@ -96,6 +99,7 @@ class WatchWorker:
         self.dry_run = dry_run
         self.offline = offline
         self._stop = threading.Event()
+        self.status_path = status_path
 
     def stop(self) -> None:
         self._stop.set()
@@ -138,6 +142,13 @@ class WatchWorker:
         workdir = self.work_root / job_id
         workdir.mkdir(parents=True, exist_ok=True)
 
+        # announce + status
+        announce("社長うさぎ", f"開始: {p.name}")
+        if self.status_path is not None:
+            st = load_status(self.status_path)
+            st.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="working", task=p.name))
+            save_status(self.status_path, st)
+
         # minimal UI for background
         class _Ui:
             def section(self, _t: str) -> None:
@@ -164,6 +175,12 @@ class WatchWorker:
             ui=_Ui(),
         )
         self._write_report(p, res.report)
+
+        announce("社長うさぎ", f"終了: {p.name}")
+        if self.status_path is not None:
+            st = load_status(self.status_path)
+            st.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="idle", task=""))
+            save_status(self.status_path, st)
 
         self.state.set_mtime_ns(p, st.st_mtime_ns)
         self.state.save()
@@ -205,6 +222,7 @@ def watch_inputs(
     offline: bool,
     recursive: bool,
     stop_file: Path | None = None,
+    status_path: Path | None = None,
 ) -> None:
     q: queue.Queue[WatchJob] = queue.Queue()
     state = StateStore(state_path)
@@ -218,6 +236,7 @@ def watch_inputs(
         model=model,
         dry_run=dry_run,
         offline=offline,
+        status_path=status_path,
     )
     t = threading.Thread(target=worker.run_forever, daemon=True)
     t.start()
