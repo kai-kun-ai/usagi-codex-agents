@@ -25,6 +25,16 @@ npm link
 export OPENAI_API_KEY="..."
 ```
 
+## Dockerで使う
+
+Dockerが入っていれば、ローカルにnode環境を用意しなくても動かせます。
+
+```bash
+docker build -t usagi .
+# カレントのspecs/をコンテナに渡して実行
+docker run --rm -e OPENAI_API_KEY="$OPENAI_API_KEY" -v "$PWD":/work -w /work usagi run specs/sample.md --workdir ./out/sample --out ./out/report.md
+```
+
 ## 使い方
 
 ### 1) 指示書を作る
