@@ -15,21 +15,31 @@ export async function runPipeline(opts: {
   workdir: string;
   model: string;
   dryRun: boolean;
+  offline: boolean;
   ui: Ui;
 }): Promise<{ report: string }> {
-  const { spec, workdir, model, dryRun, ui } = opts;
+  const { spec, workdir, model, dryRun, offline, ui } = opts;
 
   ui.section(`うさぎさん株式会社: 実行開始 / project=${spec.project}`);
   ui.log(`workdir: ${workdir}`);
   ui.log(`model: ${model}`);
   ui.log(`dry-run: ${dryRun}`);
+  ui.log(`offline: ${offline}`);
 
   const planSpin = ui.step('社長うさぎが計画を作成中...');
-  const plan = await makePlan({ spec, model });
+  const plan = offline || dryRun ? makePlanOffline({ spec }) : await makePlan({ spec, model });
   planSpin.succeed('計画ができました');
 
   if (dryRun) {
-    return { report: renderReport({ spec, workdir, plan, actions: [], notes: ['dry-runのため実行はしていません'] }) };
+    return {
+      report: renderReport({
+        spec,
+        workdir,
+        plan,
+        actions: [],
+        notes: ['dry-runのため実行はしていません（offline計画）'],
+      }),
+    };
   }
 
   const actions: string[] = [];
@@ -41,7 +51,7 @@ export async function runPipeline(opts: {
 
   // Implementation: generate files from plan (very small MVP)
   const implSpin = ui.step('実装うさぎが生成/編集案を作成中...');
-  const patch = await makePatch({ spec, plan, model });
+  const patch = offline ? makePatchOffline({ spec, plan }) : await makePatch({ spec, plan, model });
   implSpin.succeed('変更案ができました');
 
   const applySpin = ui.step('変更を適用中...');
@@ -57,6 +67,11 @@ export async function runPipeline(opts: {
   return { report: renderReport({ spec, workdir, plan, actions, notes: [checks.summary] }) };
 }
 
+function makePlanOffline(opts: { spec: UsagiSpec }): string {
+  const s = opts.spec;
+  return `## 方針\n\n- まずは最小の成果物を作り、動くことを確認してから拡張します。\n\n## 作業ステップ\n\n${s.tasks.map((t, i) => `${i + 1}. ${t}`).join('\n') || '1. 指示書に基づいてREADMEを作成'}\n\n## リスク\n\n- OpenAI APIキー未設定/権限不足\n- unified diff が適用できない差分が生成される可能性\n\n## 完了条件\n\n- 指示されたファイルが作成され、簡易チェックが通ること\n`;
+}
+
 async function makePlan(opts: { spec: UsagiSpec; model: string }): Promise<string> {
   const client = getOpenAIClient();
   const prompt = `あなたは「うさぎさん株式会社」の社長うさぎです。\n\n目的:\n${opts.spec.objective}\n\n背景:\n${opts.spec.context}\n\nやること(箇条書き):\n${opts.spec.tasks.map((t) => `- ${t}`).join('\n')}\n\n制約:\n${opts.spec.constraints.map((c) => `- ${c}`).join('\n')}\n\n出力: 実行計画をMarkdownで。セクション: 方針 / 作業ステップ / リスク / 完了条件。`;
@@ -66,6 +81,23 @@ async function makePlan(opts: { spec: UsagiSpec; model: string }): Promise<strin
     input: prompt,
   });
   return resp.output_text ?? '';
+}
+
+function makePatchOffline(opts: { spec: UsagiSpec; plan: string }): string {
+  // Minimal patch that always creates README.md
+  const project = opts.spec.project;
+  const readme = `# ${project}\n\nこれは \"うさぎさん株式会社(usagi)\" のオフラインモードで生成されたサンプルです。\n`;
+  const esc = (s: string) => s.replace(/\r?\n/g, '\n');
+  return [
+    'diff --git a/README.md b/README.md',
+    'new file mode 100644',
+    'index 0000000..1111111',
+    '--- /dev/null',
+    '+++ b/README.md',
+    '@@ -0,0 +1,3 @@',
+    `+${esc(readme)}`.replace(/\n/g, '\n+').replace(/\+$/, ''),
+    '',
+  ].join('\n');
 }
 
 async function makePatch(opts: { spec: UsagiSpec; plan: string; model: string }): Promise<string> {

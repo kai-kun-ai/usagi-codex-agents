@@ -13,6 +13,7 @@ const Args = z.object({
   workdir: z.string().optional(),
   model: z.string().default('codex'),
   dryRun: z.boolean().default(false),
+  offline: z.boolean().default(false),
 });
 
 export async function runUsagi(argsInput: z.input<typeof Args>) {
@@ -31,6 +32,7 @@ export async function runUsagi(argsInput: z.input<typeof Args>) {
     workdir,
     model: args.model,
     dryRun: args.dryRun,
+    offline: args.offline,
     ui: {
       log: (line) => console.log(line),
       section: (title) => console.log(`\n${chalk.bold.cyan('==')} ${chalk.bold(title)}\n`),

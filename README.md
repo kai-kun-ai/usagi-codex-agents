@@ -68,6 +68,11 @@ usagi run specs/hello.md --workdir ./out/hello --out ./out/report.md
 
 - `--out` を省略すると標準出力にレポートを出します
 - `--dry-run` を付けると計画だけ出します
+- `--offline` を付けると OpenAI APIを呼ばずに動作確認できます（ダミーの計画/差分を使います）
+
+## サンプル出力
+
+- `examples/sample-offline/` に、`--offline` 実行で生成したサンプルとレポートを同梱しています。
 
 ## 開発
 

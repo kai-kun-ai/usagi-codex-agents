@@ -32,6 +32,11 @@ await yargs(hideBin(process.argv))
           type: 'boolean',
           describe: '実行せずに計画だけ出す',
           default: false,
+        })
+        .option('offline', {
+          type: 'boolean',
+          describe: 'OpenAI APIを呼ばずにオフラインのダミー出力で動作確認する',
+          default: false,
         }),
     async (argv: any) => {
       await runUsagi({
@@ -40,6 +45,7 @@ await yargs(hideBin(process.argv))
         workdir: argv.workdir,
         model: argv.model,
         dryRun: argv['dry-run'],
+        offline: argv.offline,
       });
     }
   )
