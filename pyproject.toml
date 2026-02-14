@@ -11,6 +11,10 @@ dependencies = [
   "pyyaml>=6.0.2",
 ]
 
+[project.optional-dependencies]
+# Python 3.11+ は tomllib があるので不要だが、互換用
+toml = ["tomli>=2.0.1; python_version < '3.11'"]
+
 [project.scripts]
 usagi = "usagi.cli:app"
 
