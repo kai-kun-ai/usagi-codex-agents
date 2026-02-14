@@ -46,6 +46,7 @@ def test_worker_ignores_non_md(tmp_path: Path) -> None:
         model="codex",
         dry_run=True,
         offline=True,
+        status_path=None,
     )
 
     p = tmp_path / "x.txt"
@@ -70,6 +71,7 @@ def test_worker_processes_spec_and_writes_report(tmp_path: Path) -> None:
         model="codex",
         dry_run=True,
         offline=True,
+        status_path=None,
     )
 
     spec = tmp_path / "job.md"
