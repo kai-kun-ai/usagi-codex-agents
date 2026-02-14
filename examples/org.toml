@@ -1,0 +1,57 @@
+# org.toml サンプル（権力階層つき）
+
+[[agents]]
+id = "boss"
+name = "社長うさぎ"
+role = "boss"
+model = "codex"
+reports_to = ""
+can_command = ["ghost", "dev_mgr", "qa_mgr"]
+personality = "personalities/boss.md"
+memory = "memories/boss.md"
+
+[[agents]]
+id = "ghost"
+name = "ゴースト社長"
+role = "ghost_boss"
+model = "codex"
+reports_to = "boss"
+personality = "personalities/ghost_boss.md"
+memory = "memories/ghost_boss.md"
+
+[[agents]]
+id = "dev_mgr"
+name = "開発部長うさぎ"
+role = "manager"
+model = "codex"
+reports_to = "boss"
+can_command = ["w1", "w2"]
+
+[[agents]]
+id = "w1"
+name = "ワーカー1"
+role = "worker"
+model = "codex"
+reports_to = "dev_mgr"
+
+[[agents]]
+id = "w2"
+name = "ワーカー2"
+role = "worker"
+model = "codex"
+reports_to = "dev_mgr"
+
+[[agents]]
+id = "qa_mgr"
+name = "品質部長うさぎ"
+role = "manager"
+model = "codex"
+reports_to = "boss"
+can_command = ["rev1"]
+
+[[agents]]
+id = "rev1"
+name = "監査うさぎ"
+role = "reviewer"
+model = "codex"
+reports_to = "qa_mgr"

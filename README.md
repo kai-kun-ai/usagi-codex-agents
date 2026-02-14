@@ -4,23 +4,9 @@ Markdownの指示書を渡すと、**社長うさぎ(計画)** → **実装う�
 
 > コンセプト: うさぎさんの会社。
 
-## できること (MVP)
-
-- Markdownから「目的/背景/やること/制約」を抽出
-- Codex(OpenAI API)で計画 → 差分(unified diff)生成
-- `git apply` で差分を適用して成果物を作成
-- 実行ログ + レポート(Markdown)出力
+---
 
 ## セットアップ（Python）
-
-### uv（推奨）
-
-```bash
-uv venv
-uv pip install -e .
-```
-
-### pip
 
 ```bash
 python -m venv .venv
@@ -32,48 +18,19 @@ pip install -e .
 
 ```bash
 export OPENAI_API_KEY="..."
+# 複数キーがある場合
+export USAGI_API_KEYS="key1,key2,key3"
 ```
 
-## 使い方
-
-### 1) 指示書を作る
-
-例: `specs/sample.md`
-
-```md
 ---
-project: hello-usagi
----
-
-## 目的
-
-README と簡単なスクリプト/CLIを作って。
-
-## やること
-
-- README.md を作成
-- Pythonで `hello` と表示するスクリプト/CLIを作る
-
-## 制約
-
-- 文章は日本語
-```
-
-### 2) 実行
-
-```bash
-usagi run specs/sample.md --workdir ./out/hello --out ./out/report.md
-```
-
-- `--out` を省略すると標準出力にレポートを出します
-- `--dry-run` を付けると計画だけ出します（APIは呼びません）
-- `--offline` を付けると OpenAI APIを呼ばずに動作確認できます（ダミーの計画/差分を使います）
 
 ## Lint / Test
 
 ```bash
 make test
 ```
+
+---
 
 ## inputs 監視（watch）
 
@@ -83,10 +40,61 @@ make test
 usagi watch --inputs inputs --outputs outputs --work-root work --state .usagi/state.json --offline
 ```
 
-## 注意
+停止はCtrl+C、または `.usagi/STOP` を作成。
 
-- このツールは **ローカルファイルを書き換えます**（workdir配下）
-- unified diff の適用は `git apply` を使います
+---
+
+## autopilot（止めるまで走る）
+
+```bash
+usagi autopilot-start --offline
+# 停止
+usagi autopilot-stop
+```
+
+`STOP_USAGI` という文字列をDiscordで送る運用も可能（後述）。
+
+---
+
+## Discord連携（OpenClaw非依存 / discord.py）
+
+現状の実装:
+- 進捗投稿のフォーマット: **`[AI名] 文章`**
+- `@everyone` / `@here` は抑止
+- allowlist（チャンネル/ユーザー）を設定して誤爆/注入を防止
+- メンションされたら `.usagi/inbox/` に boss input を保存
+- `STOP_USAGI` を受信したら `.usagi/STOP` を作り停止
+
+### 実行に必要な環境変数
+
+```bash
+export USAGI_DISCORD_TOKEN="..."
+export USAGI_DISCORD_CHANNEL_ID="1234567890123"
+```
+
+※ Bot側で Message Content Intent を有効化してください。
+
+---
+
+## 組織図（権力階層）設定: org.toml
+
+- `examples/org.toml` を参照
+- `[[agents]]` の `id / reports_to / can_command` で指揮系統を明示
+- role は `boss / ghost_boss / manager / worker / reviewer`
+
+---
+
+## runtimeモード: usagi.runtime.toml
+
+- `examples/usagi.runtime.toml` を参照
+- merge/vote/autopilot の方針を切り替える土台
+
+---
+
+## 注意（秘密情報）
+
+- APIキーやDiscordトークンは **設定ファイルに直書きしない**
+- 環境変数 or トークンファイル参照のみ
 
 ## ライセンス
 
