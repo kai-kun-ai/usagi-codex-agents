@@ -1,22 +1,16 @@
 # syntax=docker/dockerfile:1
-FROM node:22-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies first (better layer caching)
-COPY package.json package-lock.json ./
-RUN npm ci
+# System deps for git apply
+RUN apt-get update && apt-get install -y --no-install-recommends git bash && rm -rf /var/lib/apt/lists/*
 
-# Copy sources
-COPY . .
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY tests ./tests
 
-# Build TypeScript
-RUN npm run build
-
-# Provide the CLI
-RUN npm link
-
-ENV NODE_ENV=production
+RUN pip install -U pip && pip install -e .
 
 ENTRYPOINT ["usagi"]
 CMD ["--help"]
