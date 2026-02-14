@@ -10,7 +10,9 @@ from rich.console import Console
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
 
-app = typer.Typer(add_completion=False, help="🐰 うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI")
+APP_HELP = "🐰 うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI"
+
+app = typer.Typer(add_completion=False, help=APP_HELP)
 console = Console()
 
 
@@ -42,14 +44,27 @@ class RichUi:
 
 @app.command()
 def run(
-    spec: Path = typer.Argument(..., help="指示書Markdownへのパス (例: specs/sample.md)"),
-    out: Path | None = typer.Option(None, "--out", help="出力レポートMarkdownのパス"),
-    workdir: Path = typer.Option(Path("."), "--workdir", help="作業ディレクトリ"),
-    model: str = typer.Option("codex", "--model", help="利用モデル (例: codex / gpt-4.1)"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="実行せずに計画だけ出す"),
-    offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
+    spec: Path = typer.Argument(
+        ...,
+        help="指示書Markdownへのパス (例: specs/sample.md)",
+    ),
+    out: Path | None = typer.Option(
+        None, "--out", help="出力レポートMarkdownのパス"
+    ),
+    workdir: Path = typer.Option(
+        Path("."), "--workdir", help="作業ディレクトリ"
+    ),
+    model: str = typer.Option(
+        "codex", "--model", help="利用モデル (例: codex / gpt-4.1)"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="実行せずに計画だけ出す"
+    ),
+    offline: bool = typer.Option(
+        False, "--offline", help="APIを呼ばずにダミーで動作確認"
+    ),
 ) -> None:
-    """Markdownの指示書を読んで、うさぎさん会社のマルチエージェントで実行してレポートを出します。"""
+    """Markdown指示書→マルチエージェント実行→レポート出力。"""
     if not spec.exists():
         console.print(f"❌ 指示書が見つかりません: {spec}", style="red")
         raise typer.Exit(code=1)
@@ -69,7 +84,10 @@ def run(
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(result.report, encoding="utf-8")
-        console.print(f"\n🐰 レポートを書き出しました: {out.resolve()}", style="bold green")
+        console.print(
+            f"\n🐰 レポートを書き出しました: {out.resolve()}",
+            style="bold green",
+        )
     else:
         console.print()
         console.print(result.report)
