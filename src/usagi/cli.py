@@ -9,6 +9,7 @@ from rich.console import Console
 
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
+from usagi.validate import validate_spec
 
 APP_HELP = "🐰 うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI"
 
@@ -91,3 +92,31 @@ def run(
     else:
         console.print()
         console.print(result.report)
+
+
+@app.command()
+def validate(
+    spec: Path = typer.Argument(
+        ...,
+        help="検証する指示書Markdownへのパス",
+    ),
+) -> None:
+    """指示書Markdownの内容を検証して問題点を表示。"""
+    if not spec.exists():
+        console.print(f"❌ ファイルが見つかりません: {spec}", style="red")
+        raise typer.Exit(code=1)
+
+    md = spec.read_text(encoding="utf-8")
+    usagi_spec = parse_spec_markdown(md)
+    result = validate_spec(usagi_spec)
+
+    if result.errors:
+        for e in result.errors:
+            console.print(f"  ❌ {e}", style="red")
+    if result.warnings:
+        for w in result.warnings:
+            console.print(f"  ⚠️  {w}", style="yellow")
+    if result.ok:
+        console.print("  ✅ 指示書に問題はありません。", style="green")
+    else:
+        raise typer.Exit(code=1)
