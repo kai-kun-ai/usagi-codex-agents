@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from usagi.autopilot import clear_stop, request_stop
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
 from usagi.validate import validate_spec
@@ -119,7 +120,42 @@ def watch(
         dry_run=dry_run,
         offline=offline,
         recursive=recursive,
+        stop_file=Path(".usagi/STOP"),
     )
+
+
+@app.command()
+def autopilot_start(
+    inputs: Path = typer.Option(Path("inputs"), "--inputs", help="入力フォルダ"),
+    outputs: Path = typer.Option(Path("outputs"), "--outputs", help="出力フォルダ"),
+    work_root: Path = typer.Option(Path("work"), "--work-root", help="作業フォルダ"),
+    state: Path = typer.Option(Path(".usagi/state.json"), "--state", help="状態ファイル"),
+    model: str = typer.Option("codex", "--model", help="利用モデル"),
+    offline: bool = typer.Option(False, "--offline", help="APIを呼ばずに動作確認"),
+) -> None:
+    """autopilot start（watchを止めるまで走らせる）。"""
+    clear_stop(Path("."))
+    console.print("autopilot start -> watch", style="cyan")
+
+    watch_inputs(
+        inputs_dir=inputs,
+        outputs_dir=outputs,
+        work_root=work_root,
+        state_path=state,
+        debounce_seconds=0.25,
+        model=model,
+        dry_run=False,
+        offline=offline,
+        recursive=True,
+        stop_file=Path(".usagi/STOP"),
+    )
+
+
+@app.command()
+def autopilot_stop() -> None:
+    """autopilot stop（停止要求を出す）。"""
+    p = request_stop(Path("."))
+    console.print(f"stop requested: {p}", style="yellow")
 
 
 @app.command()

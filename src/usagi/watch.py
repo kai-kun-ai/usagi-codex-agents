@@ -204,6 +204,7 @@ def watch_inputs(
     dry_run: bool,
     offline: bool,
     recursive: bool,
+    stop_file: Path | None = None,
 ) -> None:
     q: queue.Queue[WatchJob] = queue.Queue()
     state = StateStore(state_path)
@@ -230,9 +231,13 @@ def watch_inputs(
 
     try:
         while True:
+            if stop_file is not None and stop_file.exists():
+                break
             time.sleep(0.5)
     except KeyboardInterrupt:
         worker.stop()
         obs.stop()
     finally:
+        worker.stop()
+        obs.stop()
         obs.join()
