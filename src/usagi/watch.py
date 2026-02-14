@@ -127,7 +127,8 @@ class WatchWorker:
         vr = validate_spec(spec)
         if not vr.ok:
             # write validation report and mark processed
-            report = "# usagi watch: validation failed\n\n" + "\n".join([f"- {e}" for e in vr.errors]) + "\n"
+            errors = "\n".join([f"- {e}" for e in vr.errors])
+            report = "# usagi watch: validation failed\n\n" + errors + "\n"
             self._write_report(p, report)
             self.state.set_mtime_ns(p, st.st_mtime_ns)
             self.state.save()
