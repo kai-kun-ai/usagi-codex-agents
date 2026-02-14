@@ -72,8 +72,15 @@ usagi run specs/sample.md --workdir ./out/hello --out ./out/report.md
 ## Lint / Test
 
 ```bash
-ruff check .
-pytest
+make test
+```
+
+## inputs 監視（watch）
+
+`inputs/` に指示書Markdownを置くと、追加/更新を検知して自動で処理し、`outputs/` にレポートを書き出します。
+
+```bash
+usagi watch --inputs inputs --outputs outputs --work-root work --state .usagi/state.json --offline
 ```
 
 ## 注意

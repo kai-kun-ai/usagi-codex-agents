@@ -10,6 +10,7 @@ from rich.console import Console
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
 from usagi.validate import validate_spec
+from usagi.watch import watch_inputs
 
 APP_HELP = "🐰 うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI"
 
@@ -92,6 +93,33 @@ def run(
     else:
         console.print()
         console.print(result.report)
+
+
+@app.command()
+def watch(
+    inputs: Path = typer.Option(Path("inputs"), "--inputs", help="監視する入力フォルダ"),
+    outputs: Path = typer.Option(Path("outputs"), "--outputs", help="レポート出力フォルダ"),
+    work_root: Path = typer.Option(Path("work"), "--work-root", help="作業フォルダ"),
+    state: Path = typer.Option(Path(".usagi/state.json"), "--state", help="処理済み状態ファイル"),
+    debounce: float = typer.Option(0.25, "--debounce", help="デバウンス秒"),
+    recursive: bool = typer.Option(True, "--recursive/--no-recursive", help="サブフォルダも監視"),
+    model: str = typer.Option("codex", "--model", help="利用モデル"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="実行せずに計画だけ"),
+    offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
+) -> None:
+    """inputsフォルダを監視して指示書を自動処理する。"""
+    console.print(f"watching: {inputs} -> {outputs}", style="cyan")
+    watch_inputs(
+        inputs_dir=inputs,
+        outputs_dir=outputs,
+        work_root=work_root,
+        state_path=state,
+        debounce_seconds=debounce,
+        model=model,
+        dry_run=dry_run,
+        offline=offline,
+        recursive=recursive,
+    )
 
 
 @app.command()
