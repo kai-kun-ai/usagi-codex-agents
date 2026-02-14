@@ -9,3 +9,4 @@ discord.py>=2.4.0
 # 実運用で必要になることが多い（README/Makeで使用）
 ruff>=0.6.0
 pytest>=8.0.0
+requests>=2.32.0
