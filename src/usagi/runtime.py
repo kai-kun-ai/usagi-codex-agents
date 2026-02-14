@@ -54,6 +54,8 @@ class RuntimeMode:
     gh_enabled: bool = False
     docker_required: bool = True
 
+    boss_id: str = "boss"  # PR merge等の実行権限者
+
 
 def load_runtime(path: Path | None = None) -> RuntimeMode:
     if path is None:
@@ -91,4 +93,5 @@ def load_runtime(path: Path | None = None) -> RuntimeMode:
         ),
         gh_enabled=bool(system.get("gh_enabled", False)),
         docker_required=bool(system.get("docker_required", True)),
+        boss_id=str(system.get("boss_id", "boss")),
     )

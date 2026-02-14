@@ -19,6 +19,8 @@ ask_human_on_tie = true
 gh_enabled = false
 # Docker前提で動かすか（debug以外はtrue推奨）
 docker_required = true
+# PR merge等の権限者（社長id）
+boss_id = "boss"
 
 [autopilot]
 enabled = false
