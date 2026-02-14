@@ -6,7 +6,17 @@ Markdownの指示書を渡すと、**社長うさぎ(計画)** → **実装う�
 
 ---
 
-## セットアップ（Python）
+## セットアップ（Docker前提）
+
+通常運用は Docker を前提にします。
+
+```bash
+docker build -t usagi .
+```
+
+### ローカルpip（debug用途）
+
+Dockerが使えない/デバッグ用途のみ。
 
 ```bash
 python -m venv .venv
@@ -26,8 +36,16 @@ export USAGI_API_KEYS="key1,key2,key3"
 
 ## Lint / Test
 
+ローカル（debug）:
+
 ```bash
 make test
+```
+
+Docker（運用前提）:
+
+```bash
+make d-test
 ```
 
 ---
