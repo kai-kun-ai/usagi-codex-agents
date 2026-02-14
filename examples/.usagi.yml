@@ -1,0 +1,17 @@
+# .usagi.yml の設定例
+# プロジェクトルートに置くと usagi が自動で読み込みます
+
+model: codex
+max_rounds: 1
+
+# カスタムエージェント（省略するとデフォルトの3匹が使われます）
+# agents:
+#   - name: 社長うさぎ
+#     role: planner
+#     system_prompt: "あなたは計画を立てるうさぎです。"
+#   - name: 実装うさぎ
+#     role: coder
+#     system_prompt: "あなたは実装するうさぎです。"
+#   - name: 監査うさぎ
+#     role: reviewer
+#     system_prompt: "あなたはレビューするうさぎです。"

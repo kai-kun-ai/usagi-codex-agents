@@ -17,6 +17,7 @@ from usagi.agents import (
     OfflineBackend,
     OpenAIBackend,
 )
+from usagi.report import render_report
 from usagi.spec import UsagiSpec
 
 
@@ -62,7 +63,7 @@ def run_pipeline(
 
     if dry_run:
         return RunResult(
-            report=_render_report(spec=spec, workdir=workdir, started=started, messages=messages, actions=[]),
+            report=render_report(spec=spec, workdir=workdir, started=started, messages=messages, actions=[]),
             messages=messages,
         )
 
@@ -115,7 +116,7 @@ def run_pipeline(
     review_step.succeed("監査うさぎ: レビュー完了")
 
     return RunResult(
-        report=_render_report(spec=spec, workdir=workdir, started=started, messages=messages, actions=actions),
+        report=render_report(spec=spec, workdir=workdir, started=started, messages=messages, actions=actions),
         messages=messages,
     )
 
@@ -135,53 +136,3 @@ def _git_init(workdir: Path) -> None:
     if (workdir / ".git").exists():
         return
     subprocess.run(["git", "init"], cwd=workdir, check=True, text=True, capture_output=True)
-
-
-def _render_report(
-    *,
-    spec: UsagiSpec,
-    workdir: Path,
-    started: str,
-    messages: list[AgentMessage],
-    actions: list[str],
-) -> str:
-    lines: list[str] = [
-        "# 🐰 うさぎさん株式会社レポート",
-        "",
-        f"- 開始: {started}",
-        f"- project: {spec.project}",
-        f"- workdir: {workdir}",
-        "",
-        "## 目的",
-        "",
-        spec.objective or "(未記載)",
-        "",
-        "## 依頼内容(抽出)",
-        "",
-    ]
-    for t in spec.tasks:
-        lines.append(f"- {t}")
-    if not spec.tasks:
-        lines.append("(なし)")
-    lines.append("")
-
-    # エージェント会話ログ
-    lines.append("## エージェント会話ログ")
-    lines.append("")
-    for msg in messages:
-        emoji = {"planner": "👔", "coder": "💻", "reviewer": "🔍"}.get(msg.role, "🐰")
-        lines.append(f"### {emoji} {msg.agent_name} ({msg.role})")
-        lines.append("")
-        lines.append(msg.content)
-        lines.append("")
-
-    # 実行ログ
-    lines.append("## 実行ログ")
-    lines.append("")
-    for a in actions:
-        lines.append(f"- {a}")
-    if not actions:
-        lines.append("(なし)")
-    lines.append("")
-
-    return "\n".join(lines) + "\n"
