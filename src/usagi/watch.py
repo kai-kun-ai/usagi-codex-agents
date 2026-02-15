@@ -90,7 +90,7 @@ class WatchWorker:
         dry_run: bool,
         offline: bool,
         status_path: Path | None,
-        event_log_path: Path | None,
+        event_log_path: Path | None = None,
     ) -> None:
         self.q = q
         self.outputs_dir = outputs_dir

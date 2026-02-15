@@ -12,6 +12,7 @@ dependencies = [
   "watchdog>=4.0.1",
   "discord.py>=2.4.0",
   "requests>=2.32.0",
+  "textual>=0.58.0",
 ]
 
 
