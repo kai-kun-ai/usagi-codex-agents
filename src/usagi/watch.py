@@ -90,6 +90,7 @@ class WatchWorker:
         dry_run: bool,
         offline: bool,
         status_path: Path | None,
+        event_log_path: Path | None,
     ) -> None:
         self.q = q
         self.outputs_dir = outputs_dir
@@ -100,6 +101,7 @@ class WatchWorker:
         self.offline = offline
         self._stop = threading.Event()
         self.status_path = status_path
+        self.event_log_path = event_log_path
 
     def stop(self) -> None:
         self._stop.set()
@@ -144,6 +146,7 @@ class WatchWorker:
 
         # announce + status
         announce("社長うさぎ", f"開始: {p.name}")
+        self._event(f"開始: {p.name}")
         if self.status_path is not None:
             st = load_status(self.status_path)
             st.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="working", task=p.name))
@@ -177,6 +180,7 @@ class WatchWorker:
         self._write_report(p, res.report)
 
         announce("社長うさぎ", f"終了: {p.name}")
+        self._event(f"終了: {p.name}")
         if self.status_path is not None:
             st = load_status(self.status_path)
             st.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="idle", task=""))
@@ -184,6 +188,14 @@ class WatchWorker:
 
         self.state.set_mtime_ns(p, st.st_mtime_ns)
         self.state.save()
+
+    def _event(self, msg: str) -> None:
+        if self.event_log_path is None:
+            return
+        self.event_log_path.parent.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        with self.event_log_path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {msg}\n")
 
     def _write_report(self, src: Path, report: str) -> Path:
         self.outputs_dir.mkdir(parents=True, exist_ok=True)
@@ -223,6 +235,7 @@ def watch_inputs(
     recursive: bool,
     stop_file: Path | None = None,
     status_path: Path | None = None,
+    event_log_path: Path | None = None,
 ) -> None:
     q: queue.Queue[WatchJob] = queue.Queue()
     state = StateStore(state_path)
@@ -237,6 +250,7 @@ def watch_inputs(
         dry_run=dry_run,
         offline=offline,
         status_path=status_path,
+        event_log_path=event_log_path,
     )
     t = threading.Thread(target=worker.run_forever, daemon=True)
     t.start()

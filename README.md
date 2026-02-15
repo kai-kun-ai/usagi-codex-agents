@@ -37,6 +37,7 @@ claude  # setup-token 等
 
 ## CLI（主要）
 
+- `usagi tui`（統合CUI。ここから start/stop/状態確認ができる）
 - `usagi run` / `usagi validate`
 - `usagi watch`
 - `usagi autopilot-start` / `usagi autopilot-stop`
