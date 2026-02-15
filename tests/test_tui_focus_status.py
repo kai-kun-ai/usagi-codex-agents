@@ -24,7 +24,9 @@ def test_focused_window_label_direct_ids() -> None:
 
 def test_focused_window_label_resolves_by_ancestor() -> None:
     assert _focused_window_label(_FakeFocused(id=None, ancestors={"#inputs"})) == "入力"
-    assert _focused_window_label(_FakeFocused(id=None, ancestors={"#secretary_scroll"})) == "秘書ログ"
+    assert (
+        _focused_window_label(_FakeFocused(id=None, ancestors={"#secretary_scroll"})) == "秘書ログ"
+    )
     assert _focused_window_label(_FakeFocused(id=None, ancestors={"#org_scroll"})) == "組織図"
 
 

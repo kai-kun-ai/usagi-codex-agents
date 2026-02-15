@@ -116,19 +116,19 @@ def _focused_window_label(focused: object | None) -> str:
 
     # Children can have focus; try to resolve by ancestor.
     try:
-        if getattr(focused, "has_ancestor")("#inputs"):
+        if focused.has_ancestor("#inputs"):
             return "入力"
     except Exception:
         pass
 
     try:
-        if getattr(focused, "has_ancestor")("#secretary_scroll"):
+        if focused.has_ancestor("#secretary_scroll"):
             return "秘書ログ"
     except Exception:
         pass
 
     try:
-        if getattr(focused, "has_ancestor")("#org_scroll"):
+        if focused.has_ancestor("#org_scroll"):
             return "組織図"
     except Exception:
         pass
