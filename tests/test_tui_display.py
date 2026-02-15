@@ -45,8 +45,8 @@ def work_root(tmp_path: Path) -> Path:
     inputs.mkdir()
     (inputs / "hello.md").write_text("# Hello", encoding="utf-8")
 
-    # chat.log
-    (usagi / "chat.log").write_text(
+    # secretary.log
+    (usagi / "secretary.log").write_text(
         f"[{ts}] you: test message\n", encoding="utf-8"
     )
 
@@ -124,8 +124,8 @@ async def test_tui_shows_org(work_root: Path, org_path: Path) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_tui_boss_chat_input(work_root: Path, org_path: Path) -> None:
-    """社長チャットに入力して Send すると chat.log に追記される。"""
+async def test_tui_secretary_chat_input(work_root: Path, org_path: Path) -> None:
+    """秘書チャットに入力して submit すると secretary.log に追記される。"""
     app = UsagiTui(
         root=work_root,
         org_path=org_path,
@@ -134,17 +134,16 @@ async def test_tui_boss_chat_input(work_root: Path, org_path: Path) -> None:
         demo=False,
     )
     async with app.run_test() as pilot:
-        # 入力欄にテキストを打つ
-        inp = app.query_one("#boss_input")
+        inp = app.query_one("#secretary_input")
         inp.focus()
         await pilot.pause()
         await pilot.press("h", "i")
-        await pilot.press("enter")  # submit
+        await pilot.press("enter")
         await pilot.pause()
 
-        chat = work_root / ".usagi/chat.log"
-        assert chat.exists()
-        content = chat.read_text(encoding="utf-8")
+        log = work_root / ".usagi/secretary.log"
+        assert log.exists()
+        content = log.read_text(encoding="utf-8")
         assert "hi" in content
 
 
