@@ -6,7 +6,7 @@ name = "社長うさぎ"
 role = "boss"
 model = "codex"
 reports_to = ""
-can_command = ["ghost", "dev_mgr", "qa_mgr"]
+can_command = ["ghost", "dev_mgr", "qa_mgr", "ops_mgr"]
 personality = "personalities/boss.md"
 memory = "memories/boss.md"
 
@@ -55,3 +55,26 @@ name = "監査うさぎ"
 role = "reviewer"
 model = "codex"
 reports_to = "qa_mgr"
+
+# 第2部門サンプル（運用/自動化）
+[[agents]]
+id = "ops_mgr"
+name = "運用部長うさぎ"
+role = "manager"
+model = "codex"
+reports_to = "boss"
+can_command = ["ops1", "ops2"]
+
+[[agents]]
+id = "ops1"
+name = "運用ワーカー1"
+role = "worker"
+model = "codex"
+reports_to = "ops_mgr"
+
+[[agents]]
+id = "ops2"
+name = "運用ワーカー2"
+role = "worker"
+model = "codex"
+reports_to = "ops_mgr"
