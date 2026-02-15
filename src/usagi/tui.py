@@ -141,7 +141,7 @@ def _focused_window_label(focused: object | None) -> str:
 
 # NOTE: 状態表示は組織図に統合したため、専用ウィンドウは廃止。
 class _EventsBox(Static):
-    def update_text(self, log_path: Path, max_lines: int = 15) -> None:
+    def update_text(self, log_path: Path, max_lines: int = 21) -> None:
         if not log_path.exists():
             self.update("(no events yet)")
             return
@@ -209,8 +209,9 @@ class _InputsBox(ListView):
         items.sort(key=lambda x: x[1], reverse=True)
         items = items[: self.max_items]
 
-        # 既存選択を保持（再描画時にカーソルが飛ぶのを防ぐ）
+        # 既存選択を保持（再描画時にカーソル/ハイライトが飛ぶのを防ぐ）
         prev_selected = self.selected_path
+        prev_index = self.index
 
         pending = 0
         signature: list[tuple[str, bool]] = []
@@ -259,8 +260,11 @@ class _InputsBox(ListView):
         # 選択を復元（同じファイルが残っている場合）
         if prev_selected is not None and prev_selected in self._paths:
             self.index = self._paths.index(prev_selected)
-        elif self.index is None and self._paths:
-            # 初期選択（削除キーが効くように）
+        elif prev_index is not None and 0 <= prev_index < len(self._paths):
+            # 同じindex位置を維持（新規追加などで行が増えても、ハイライトのズレを抑える）
+            self.index = prev_index
+        elif self.index is None and self._paths and self.has_focus:
+            # 初期選択（フォーカスがある時だけ）
             self.index = 0
 
 
@@ -339,7 +343,7 @@ class UsagiTui(App):
     #left_scroll { height: 1fr; }
 
     /* NOTE: events は下部に固定高で確保する（入力欄が縦に伸びても重ならないように） */
-    #events { height: 6; border: solid green; padding: 0 1; }
+    #events { height: 9; border: solid green; padding: 0 1; }
     /* focus_status panel removed: focus is shown in the bottom bar */
     #focus_bar { height: 1; background: $panel; color: $text-muted; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
