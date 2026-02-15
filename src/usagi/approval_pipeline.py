@@ -227,6 +227,15 @@ def _run_worker_step(
     log = logging.getLogger(__name__)
 
     if not offline and runtime.use_worker_container:
+        import shutil
+
+        if shutil.which("docker") is None:
+            raise RuntimeError(
+                "docker CLI not found in PATH. "
+                "This run is configured to use worker containers (use_worker_container=true). "
+                "Install docker CLI in the usagi image or set use_worker_container=false."
+            )
+
         log.info("worker step: using container")
         return _run_worker_in_container(
             worker=worker,
@@ -307,6 +316,8 @@ def _run_worker_in_container(
             "exec",
             "--file", "/prompt.md",
         ]
+
+        # NOTE: docker CLI is required in the parent(usagi) image, and host docker.sock must be mounted.
 
         log.info("worker container cmd: %s", " ".join(cmd))
         r = subprocess.run(cmd, capture_output=True, text=True, check=False)
