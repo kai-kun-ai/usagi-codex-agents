@@ -35,7 +35,9 @@ reports_to = ""
 
     async with app.run_test() as pilot:
         await pilot.pause()
-        # inputs list should have focusable selection; press d to delete
+        # inputs listにフォーカスしてから d で削除
+        await pilot.click("#inputs")
+        await pilot.pause()
         await pilot.press("d")
         await pilot.pause(0.6)
 

@@ -174,6 +174,10 @@ class _InputsBox(ListView):
         # border_titleを更新（composeで付ける前提）
         self.border_title = f"入力 (pending={pending})"
 
+        # 初期選択（削除キーが効くように）
+        if self.index is None and self._paths:
+            self.index = 0
+
 
 class _BossChatBox(Static):
     def update_text(self, log_path: Path, max_lines: int = 25) -> None:
