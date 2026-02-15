@@ -28,6 +28,7 @@ from usagi.runtime import load_runtime
 from usagi.spec import parse_spec_markdown
 from usagi.state import AgentStatus, load_status, save_status
 from usagi.validate import validate_spec
+from usagi.report_state import update_boss_report
 
 
 @dataclass
@@ -191,10 +192,10 @@ class WatchWorker:
         if not spec.objective:
             spec.objective = raw_text.strip()
 
-        # プロジェクト名でサブディレクトリを分ける
+        # 作業ディレクトリ（git ルートは1つに統一）
         project = spec.project or "default"
         job_id = f"{int(time.time())}-{p.stem}"
-        project_dir = self.work_root / project
+        project_dir = self.work_root
         workdir = project_dir / "jobs" / job_id
         workdir.mkdir(parents=True, exist_ok=True)
 
@@ -251,7 +252,7 @@ class WatchWorker:
                 status_path=self.status_path,
                 repo_root=project_dir,
             )
-            self._write_report(p, res.report)
+            self._write_report(p, res.report, spec=spec, job_id=job_id, messages=res.messages)
             self._event("pipeline done")
         except Exception as e:  # noqa: BLE001
             import traceback
@@ -294,48 +295,39 @@ class WatchWorker:
         with self.event_log_path.open("a", encoding="utf-8") as f:
             f.write(f"[{ts}] {msg}\n")
 
-    def _write_report(self, src: Path, report: str) -> Path:
-        """レポートを書き出す（常に1ファイルに追記）。
+    def _write_report(self, src: Path, report: str, *, spec=None, job_id: str = "", messages=None) -> Path:
+        """outputs/report.md を更新する（社長用の状態ファイル）。"""
 
-        運用方針:
-        - inputs は（同一rootなら）すべて同一プロジェクトの依頼として扱う
-        - outputs は分割せず、社長が定期的に見る "メモリ" として1つのmdに追記する
-
-        出力:
-        - `outputs/report.md` に追記
-
-        詳細な受け渡し/履歴は `workdir/.usagi/artifacts/` を参照。
-        """
-
-        self.outputs_dir.mkdir(parents=True, exist_ok=True)
-        out = self.outputs_dir / "report.md"
-
-        ts = time.strftime("%Y-%m-%d %H:%M:%S")
         try:
-            rel_src = src.relative_to(self.inputs_dir)
+            rel_src = str(src.relative_to(self.inputs_dir))
         except Exception:
-            rel_src = Path(src.name)
+            rel_src = src.name
 
-        # workdir の場所も追えるように書く
-        workdir_rel = "(unknown)"
+        workdir = None
         try:
-            wd = self._current_workdir  # type: ignore[attr-defined]
-            workdir_rel = str(wd)
+            workdir = self._current_workdir  # type: ignore[attr-defined]
         except Exception:
-            pass
+            workdir = None
 
-        header = (
-            "\n\n---\n"
-            f"## [{ts}] input: {rel_src}\n\n"
-            f"- workdir: `{workdir_rel}`\n\n"
+        # spec が無い場合は従来通り追記だけ
+        if spec is None or workdir is None:
+            self.outputs_dir.mkdir(parents=True, exist_ok=True)
+            out = self.outputs_dir / "report.md"
+            with out.open("a", encoding="utf-8") as f:
+                f.write("\n\n---\n")
+                f.write(f"## {time.strftime('%Y-%m-%d %H:%M:%S')} input: {rel_src}\n\n")
+                f.write(report.rstrip() + "\n")
+            return out
+
+        return update_boss_report(
+            outputs_dir=self.outputs_dir,
+            spec=spec,
+            job_id=job_id or src.stem,
+            workdir=workdir,
+            input_rel=rel_src,
+            messages=messages,
+            note="",
         )
-
-        with out.open("a", encoding="utf-8") as f:
-            f.write(header)
-            f.write(report.rstrip())
-            f.write("\n")
-
-        return out
 
     def _trash_input(self, p: Path) -> None:
         """処理済み入力を .usagi/trash/inputs に移動する（復元可能）。"""
