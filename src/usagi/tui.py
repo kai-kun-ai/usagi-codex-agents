@@ -42,7 +42,8 @@ def _discover_project_roots(root: Path) -> list[Path]:
     CWD や作業rootなど複数の起点から親を辿って探す。
     """
 
-    bases = [Path.cwd(), root, _repo_root()]
+    # 優先順位: 実行root（/workなど）→ CWD → __file__由来
+    bases = [root, Path.cwd(), _repo_root()]
     roots: list[Path] = []
     for b in bases:
         for p in [b, *b.parents]:
