@@ -121,6 +121,49 @@ class _BossChatBox(Static):
         self.update("\n".join(tail) if tail else "(no messages)")
 
 
+class _OrgBox(Static):
+    def update_text(self, org_path: Path, status_path: Path) -> None:
+        if not org_path.exists():
+            self.update("(no org.toml)")
+            return
+
+        try:
+            org = load_org(org_path)
+        except Exception:
+            self.update("(failed to load org.toml)")
+            return
+
+        st = load_status(status_path)
+
+        # root nodes are those with empty reports_to
+        roots = [a for a in org.agents if not a.reports_to]
+
+        def line_for(agent_id: str, name: str) -> str:
+            a = st.agents.get(agent_id)
+            if not a:
+                return f"- {name} ({agent_id})"
+            task = f" {a.task}" if a.task else ""
+            return f"- {name} ({agent_id}): {a.state}{task}"
+
+        lines: list[str] = ["org chart", ""]
+
+        def walk(agent_id: str, name: str, indent: int) -> None:
+            prefix = "  " * indent
+            lines.append(prefix + line_for(agent_id, name))
+            # children
+            children = [a for a in org.agents if a.reports_to == agent_id]
+            for c in children:
+                walk(c.id, c.name, indent + 1)
+
+        for r in roots:
+            walk(r.id, r.name, 0)
+
+        self.update("\n".join(lines))
+
+
+from usagi.org import load_org
+
+
 class UsagiTui(App):
     CSS = """
     #main { height: 1fr; }
@@ -129,6 +172,7 @@ class UsagiTui(App):
     #status { height: 1fr; }
     #inputs { height: auto; }
     #boss_chat { height: 12; }
+    #org { height: 1fr; }
     """
 
     BINDINGS = [
@@ -136,9 +180,18 @@ class UsagiTui(App):
         ("q", "quit", "Quit"),
     ]
 
-    def __init__(self, *, root: Path, model: str, offline: bool, demo: bool) -> None:
+    def __init__(
+        self,
+        *,
+        root: Path,
+        org_path: Path,
+        model: str,
+        offline: bool,
+        demo: bool,
+    ) -> None:
         super().__init__()
         self.root = root
+        self.org_path = org_path
         self.model = model
         self.offline = offline
         self.demo = demo
@@ -165,6 +218,8 @@ class UsagiTui(App):
                 with Container(id="right"):
                     yield Static("状態", classes="box")
                     yield _StatusBox(id="status")
+                    yield Static("組織図", classes="box")
+                    yield _OrgBox(id="org")
             yield Static("イベントログ", classes="box")
             yield _EventsBox(id="events")
         yield Footer()
@@ -213,6 +268,10 @@ class UsagiTui(App):
 
     def _refresh(self) -> None:
         self.query_one(_StatusBox).update_text(self.root)
+        self.query_one(_OrgBox).update_text(
+            self.org_path,
+            self.root / ".usagi/status.json",
+        )
         self.query_one(_BossChatBox).update_text(self.root / ".usagi/chat.log")
         self.query_one(_InputsBox).update_text(
             self.root / "inputs",
@@ -270,9 +329,10 @@ class UsagiTui(App):
         self._refresh()
 
 
-def run_tui(*, root: Path, model: str, offline: bool, demo: bool) -> None:
+def run_tui(*, root: Path, org_path: Path, model: str, offline: bool, demo: bool) -> None:
     root = root.resolve()
+    org_path = org_path.resolve()
     # events.logが読めるように最低限作っておく
     (root / ".usagi").mkdir(parents=True, exist_ok=True)
     # Textual起動
-    UsagiTui(root=root, model=model, offline=offline, demo=demo).run()
+    UsagiTui(root=root, org_path=org_path, model=model, offline=offline, demo=demo).run()
