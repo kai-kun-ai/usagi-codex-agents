@@ -15,3 +15,4 @@ worker_pool_size = 7
 
     rt = load_runtime(p)
     assert rt.worker_pool_size == 7
+    assert rt.use_worker_container is True

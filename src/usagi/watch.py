@@ -191,27 +191,49 @@ class WatchWorker:
             def fail(self, _m: str | None = None) -> None:
                 return None
 
-        if self.dry_run:
-            # 互換: dry-run は従来通り簡易レポート
+        org_file = self.org_path or Path("examples/org.toml")
+        runtime_file = self.runtime_path or Path("usagi.runtime.toml")
+        runtime = load_runtime(runtime_file)
+
+        if self.dry_run or self.offline or not runtime.use_worker_container:
+            # dry-run/offline は従来通りローカル実行
             res = run_approval_pipeline(
                 spec=spec,
                 workdir=workdir,
                 model=self.model,
-                offline=True,
-                org=load_org(self.org_path or Path("examples/org.toml")),
-                runtime=load_runtime(self.runtime_path),
+                offline=True if self.dry_run else self.offline,
+                org=load_org(org_file),
+                runtime=runtime,
                 root=Path("."),
             )
         else:
-            res = run_approval_pipeline(
-                spec=spec,
-                workdir=workdir,
+            # workerコンテナに実行を委譲
+            from usagi.worker_container import run_approval_in_worker_container
+
+            cname = f"usagi-worker-{job_id}"
+            self._event(f"worker_container start: {cname}")
+            r = run_approval_in_worker_container(
+                repo_root=Path(".").resolve(),
+                spec_path=p.resolve(),
+                workdir=workdir.resolve(),
                 model=self.model,
-                offline=self.offline,
-                org=load_org(self.org_path or Path("examples/org.toml")),
-                runtime=load_runtime(self.runtime_path),
-                root=Path("."),
+                offline=False,
+                org_path=org_file.resolve(),
+                runtime_path=runtime_file.resolve(),
+                container_name=cname,
             )
+            self._event(f"worker_container end: {cname} (code={r.returncode})")
+
+            if r.returncode != 0:
+                # stdout/stderrをそのまま貼ると secrets の危険があるので最小限だけ
+                report = (
+                    "# usagi watch: worker container failed\n\n"
+                    f"- container: {cname}\n"
+                    f"- exit_code: {r.returncode}\n"
+                )
+                res = type("_Res", (), {"report": report})
+            else:
+                res = type("_Res", (), {"report": r.stdout})
 
         self._write_report(p, res.report)
 

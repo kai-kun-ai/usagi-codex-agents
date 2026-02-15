@@ -146,6 +146,13 @@ def _ensure_branch(repo_root: Path, branch: str) -> None:
         )
 
 
+@dataclass
+class WorkerContainerResult:
+    returncode: int
+    stdout: str
+    stderr: str
+
+
 def build_container_run_cmd(
     worker: AgentDef,
     wb: WorkerBranch,
@@ -186,3 +193,96 @@ def build_container_run_cmd(
         "/task.md",
     ]
     return cmd
+
+
+def build_worker_entry_cmd(
+    *,
+    repo_root: Path,
+    spec_path: Path,
+    workdir: Path,
+    model: str,
+    offline: bool,
+    org_path: Path,
+    runtime_path: Path,
+    container_name: str,
+    image: str = "usagi-worker:latest",
+) -> list[str]:
+    """approval pipeline を worker コンテナ内で実行するコマンドを構築する。"""
+
+    # spec は repo外にある可能性があるため個別にマウント
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        container_name,
+        "-v",
+        f"{repo_root}:/repo",
+        "-v",
+        f"{spec_path}:/spec.md:ro",
+        "-v",
+        f"{org_path}:/repo_org.toml:ro",
+        "-v",
+        f"{runtime_path}:/repo_runtime.toml:ro",
+        "-v",
+        f"{workdir}:/repo_workdir",
+        "-w",
+        "/repo",
+        "--entrypoint",
+        "python",
+        image,
+        "-m",
+        "usagi.worker_entry",
+        "--spec",
+        "/spec.md",
+        "--workdir",
+        "/repo_workdir",
+        "--model",
+        model,
+        *( ["--offline"] if offline else [] ),
+        "--org",
+        "/repo_org.toml",
+        "--runtime",
+        "/repo_runtime.toml",
+        "--root",
+        "/repo",
+    ]
+
+
+def run_approval_in_worker_container(
+    *,
+    repo_root: Path,
+    spec_path: Path,
+    workdir: Path,
+    model: str,
+    offline: bool,
+    org_path: Path,
+    runtime_path: Path,
+    container_name: str,
+    image: str = "usagi-worker:latest",
+) -> WorkerContainerResult:
+    cmd = build_worker_entry_cmd(
+        repo_root=repo_root,
+        spec_path=spec_path,
+        workdir=workdir,
+        model=model,
+        offline=offline,
+        org_path=org_path,
+        runtime_path=runtime_path,
+        container_name=container_name,
+        image=image,
+    )
+
+    r = subprocess.run(
+        cmd,
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    # secrets をうっかりログに出さないため stdout/stderr はそのまま返すだけにする
+    return WorkerContainerResult(
+        returncode=int(r.returncode),
+        stdout=r.stdout or "",
+        stderr=r.stderr or "",
+    )
