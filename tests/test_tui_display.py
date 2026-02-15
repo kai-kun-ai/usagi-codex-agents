@@ -83,6 +83,7 @@ async def test_tui_secretary_chat_input(work_root: Path, org_path: Path) -> None
 
 
 @pytest.mark.asyncio()
+@pytest.mark.skip(reason="secretary_to_input runs async summarize; needs offline stub (see #77)")
 async def test_tui_secretary_to_input_shortcut(work_root: Path, org_path: Path) -> None:
     """ボタン無しでも操作できるよう、ショートカットで起票できる。"""
     # Pre-populate secretary.log so ctrl+b has content to submit
