@@ -16,6 +16,7 @@ from pathlib import Path
 
 from usagi.agents import AgentMessage
 from usagi.spec import UsagiSpec
+from usagi.report_sections import parse_section as _parse_section
 
 
 @dataclass(frozen=True)
@@ -30,8 +31,16 @@ class ReportEntry:
     note: str
 
 
-def update_boss_report(*, outputs_dir: Path, spec: UsagiSpec, job_id: str, workdir: Path, input_rel: str,
-                       messages: list[AgentMessage] | None, note: str) -> Path:
+def update_boss_report(*,
+                       outputs_dir: Path,
+                       spec: UsagiSpec,
+                       job_id: str,
+                       workdir: Path,
+                       input_rel: str,
+                       messages: list[AgentMessage] | None,
+                       note: str,
+                       boss_summary: str = "",
+                       boss_decisions: list[str] | None = None) -> Path:
     """outputs/report.md を更新する。"""
 
     outputs_dir.mkdir(parents=True, exist_ok=True)
@@ -56,8 +65,10 @@ def update_boss_report(*, outputs_dir: Path, spec: UsagiSpec, job_id: str, workd
         note=note.strip(),
     )
 
+    decisions = boss_decisions or []
+
     text = out.read_text(encoding="utf-8") if out.exists() else ""
-    new_text = _merge(text, entry)
+    new_text = _merge(text, entry, boss_summary=boss_summary, boss_decisions=decisions)
     out.write_text(new_text, encoding="utf-8")
     return out
 
@@ -74,9 +85,11 @@ def _extract_outcome(messages: list[AgentMessage]) -> tuple[bool, bool]:
     return lead_ok, merge_ok
 
 
-def _merge(existing: str, entry: ReportEntry) -> str:
+def _merge(existing: str, entry: ReportEntry, *, boss_summary: str, boss_decisions: list[str]) -> str:
     todo = _parse_todo(existing)
     hist = _parse_history(existing)
+    summary = _parse_section(existing, "## サマリ（社長）")
+    decisions = _parse_section(existing, "## 決定事項")
 
     # TODO: add new tasks
     for t in entry.tasks:
@@ -88,6 +101,12 @@ def _merge(existing: str, entry: ReportEntry) -> str:
             if t:
                 todo[t] = True
 
+    # update summary/decisions (best-effort)
+    if boss_summary.strip():
+        summary = boss_summary.strip()
+    if boss_decisions:
+        decisions = "\n".join([f"- {d}" for d in boss_decisions if d.strip()]).strip()
+
     # append history (keep last 20)
     hist.append(entry)
     hist = hist[-20:]
@@ -95,6 +114,15 @@ def _merge(existing: str, entry: ReportEntry) -> str:
     lines: list[str] = []
     lines.append("# 社長レポート")
     lines.append("")
+
+    lines.append("## サマリ（社長）")
+    lines.append(summary.strip() if summary.strip() else "(未記入)")
+    lines.append("")
+
+    lines.append("## 決定事項")
+    lines.append(decisions.strip() if decisions.strip() else "(未記入)")
+    lines.append("")
+
     lines.append("## TODO")
     if not todo:
         lines.append("- [ ] (なし)")

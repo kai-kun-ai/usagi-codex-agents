@@ -110,6 +110,25 @@ def run_approval_pipeline(
     # Boss can update the report immediately after delegating/deciding.
     if outputs_dir is not None:
         try:
+            # boss_summary / decisions are extracted from the plan text (best-effort)
+            lines = (plan.content or "").splitlines()
+            summary = ""
+            decisions: list[str] = []
+            for i, line in enumerate(lines[:30]):
+                if line.strip().startswith("## "):
+                    continue
+                if line.strip():
+                    summary = line.strip()
+                    break
+            in_decision = False
+            for line in lines:
+                if line.strip() in {"## 決定事項", "## 方針"}:
+                    in_decision = True
+                    continue
+                if in_decision and line.startswith("## "):
+                    break
+                if in_decision and line.strip().startswith("-"):
+                    decisions.append(line.strip().lstrip("-").strip())
             update_boss_report(
                 outputs_dir=outputs_dir,
                 spec=spec,
@@ -118,6 +137,8 @@ def run_approval_pipeline(
                 input_rel=input_rel or "(unknown)",
                 messages=msgs,
                 note="社長: 依頼を受領し、方針/計画を作成して部下へ委任しました。",
+                boss_summary=summary,
+                boss_decisions=decisions,
             )
         except Exception:
             # best-effort
