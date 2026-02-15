@@ -13,7 +13,7 @@
 make test      # ローカル
 make d-test    # Docker
 make run WORKDIR=$PWD PROFILE=alice OFFLINE=1  # Dockerで統合CUI起動
-make demo                                    # Dockerで完全デモ起動（WORKDIR/PROFILE不要）
+make demo                                      # Dockerで完全デモ起動（WORKDIR/PROFILE不要）
 ```
 
 ## Codex / Claude login（複数セッション）
