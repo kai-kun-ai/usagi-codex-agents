@@ -19,7 +19,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from usagi.org import AgentDef, Organization, ROLE_BOSS, ROLE_MANAGER
+from usagi.org import ROLE_BOSS, ROLE_MANAGER, AgentDef, Organization
 from usagi.profiles import ProfileDef
 
 

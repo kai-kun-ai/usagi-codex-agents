@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from usagi.org import AgentDef, Organization, ROLE_BOSS, ROLE_MANAGER, ROLE_WORKER
+from usagi.org import ROLE_BOSS, ROLE_MANAGER, ROLE_WORKER, AgentDef, Organization
 from usagi.profiles import ProfileDef
-from usagi.worker_container import BranchPolicy, build_container_run_cmd, WorkerBranch
+from usagi.worker_container import BranchPolicy, WorkerBranch, build_container_run_cmd
 
 
 def test_branch_policy_merge_to_team() -> None:
