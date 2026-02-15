@@ -340,11 +340,12 @@ class UsagiTui(App):
 
     /* NOTE: events は下部に固定高で確保する（入力欄が縦に伸びても重ならないように） */
     #events { height: 6; border: solid green; padding: 0 1; }
-    #focus_status { height: 3; border: solid cyan; padding: 0 1; }
+    /* focus_status panel removed: focus is shown in the bottom bar */
+    #focus_bar { height: 1; background: $panel; color: $text-muted; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
     #inputs { height: 12; border: solid yellow; padding: 0 1; }
-    #secretary_scroll { height: 12; border: solid magenta; padding: 0 1; }
+    #secretary_scroll { height: 18; border: solid magenta; padding: 0 1; }
     #secretary_chat { height: auto; }
 
     /* NOTE:
@@ -446,9 +447,7 @@ class UsagiTui(App):
             events_box.border_title = "イベントログ"
             yield events_box
 
-            focus_status = Static("Focus: (initializing)", id="focus_status")
-            focus_status.border_title = "フォーカス"
-            yield focus_status
+            yield Static("Focus: (initializing)", id="focus_bar")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -513,10 +512,10 @@ class UsagiTui(App):
         # mode button
         self.query_one("#mode", Button).label = _mode_label(self.root)
 
-        # focus indicator (bottom)
+        # focus indicator (bottom bar)
         try:
             focused = getattr(self, "focused", None)
-            self.query_one("#focus_status", Static).update(
+            self.query_one("#focus_bar", Static).update(
                 f"Focus: {_focused_window_label(focused)}"
             )
         except Exception:
