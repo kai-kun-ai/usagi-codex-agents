@@ -22,6 +22,9 @@ APP_HELP = "🐰 うさぎさん株式会社: Markdown指示で動くCodex向け
 app = typer.Typer(add_completion=False, help=APP_HELP)
 console = Console()
 
+retrain_app = typer.Typer(help="部下の再教育（personality/memory mdの提案→承認→適用）")
+app.add_typer(retrain_app, name="retrain")
+
 
 class _Step:
     """Rich spinnerを模したシンプルなステップUI。"""
@@ -210,6 +213,64 @@ def input(
 
     p = write_boss_input(Path("."), BossInput(source="cli", text=text))
     console.print(f"saved: {p}", style="green")
+
+
+@retrain_app.command("propose")
+def retrain_propose(
+    target: str = typer.Argument(..., help="再教育対象のagent_id（例: dev_mgr / dev_w1）"),
+    proposer: str = typer.Option("boss", "--proposer", help="提案者agent_id"),
+    reason: str = typer.Option(..., "--reason", help="再教育理由（短く）"),
+    org_path: Path = typer.Option(Path("examples/org.toml"), "--org", help="org.toml"),
+    runtime_path: Path = typer.Option(Path("usagi.runtime.toml"), "--runtime", help="runtime toml"),
+    root: Path = typer.Option(Path("."), "--root", help="project root"),
+) -> None:
+    """再教育提案を作成し、承認者へ投げる（変更は適用しない）。"""
+
+    from usagi.org import load_org
+    from usagi.runtime import load_runtime
+    from usagi.retrain import propose_retrain
+
+    root = root.resolve()
+    outputs_dir = root / "outputs"
+    prop_path = propose_retrain(
+        root=root,
+        outputs_dir=outputs_dir,
+        org=load_org(org_path),
+        runtime=load_runtime(runtime_path),
+        proposer_id=proposer,
+        target_id=target,
+        reason=reason,
+    )
+    console.print(f"proposal created: {prop_path}", style="green")
+
+
+@retrain_app.command("decide")
+def retrain_decide(
+    proposal: Path = typer.Argument(..., help="proposeで作ったproposal jsonのパス"),
+    decider: str = typer.Option("boss", "--by", help="承認者agent_id"),
+    offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミー"),
+    org_path: Path = typer.Option(Path("examples/org.toml"), "--org", help="org.toml"),
+    runtime_path: Path = typer.Option(Path("usagi.runtime.toml"), "--runtime", help="runtime toml"),
+    root: Path = typer.Option(Path("."), "--root", help="project root"),
+) -> None:
+    """再教育提案を承認/投票し、承認されたらパッチを適用する。"""
+
+    from usagi.org import load_org
+    from usagi.runtime import load_runtime
+    from usagi.retrain import decide_and_apply
+
+    root = root.resolve()
+    outputs_dir = root / "outputs"
+    result = decide_and_apply(
+        root=root,
+        outputs_dir=outputs_dir,
+        org=load_org(org_path),
+        runtime=load_runtime(runtime_path),
+        proposal_path=proposal,
+        decider_id=decider,
+        offline=offline,
+    )
+    console.print(result)
 
 
 @app.command()

@@ -17,6 +17,7 @@ from pathlib import Path
 from usagi.agents import AgentMessage
 from usagi.spec import UsagiSpec
 from usagi.report_sections import parse_section as _parse_section
+from usagi.report_sections import replace_section as _replace_section
 
 
 @dataclass(frozen=True)
@@ -121,6 +122,12 @@ def _merge(existing: str, entry: ReportEntry, *, boss_summary: str, boss_decisio
 
     lines.append("## 決定事項")
     lines.append(decisions.strip() if decisions.strip() else "(未記入)")
+    lines.append("")
+
+    # Human judgement requests (ticket-like)
+    hj = _parse_section(existing, "## 人間判断が必要")
+    lines.append("## 人間判断が必要")
+    lines.append(hj.strip() if hj.strip() else "- [ ] (なし)")
     lines.append("")
 
     lines.append("## TODO")
