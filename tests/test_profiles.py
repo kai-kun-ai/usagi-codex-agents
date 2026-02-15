@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from usagi.profiles import ProfileStore, load_profiles
+from usagi.profiles import load_profiles
 
 
 def test_load_profiles(tmp_path: Path) -> None:
