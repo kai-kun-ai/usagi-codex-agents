@@ -416,6 +416,8 @@ class UsagiTui(App):
                 dry_run=False,
                 offline=self.offline,
                 recursive=True,
+                org_path=self.org_path,
+                runtime_path=self.root / "usagi.runtime.toml",
                 stop_file=self.root / ".usagi/STOP",
                 status_path=self.root / ".usagi/status.json",
                 event_log_path=self.root / ".usagi/events.log",
