@@ -168,11 +168,12 @@ class UsagiTui(App):
     CSS = """
     #main { height: 1fr; }
     #left, #right { width: 1fr; }
-    #events { height: 1fr; }
-    #status { height: 1fr; }
-    #inputs { height: auto; }
-    #boss_chat { height: 12; }
-    #org { height: 1fr; }
+    #events { height: 1fr; border: solid green; padding: 0 1; }
+    #status { height: 1fr; border: solid cyan; padding: 0 1; }
+    #inputs { height: auto; border: solid yellow; padding: 0 1; }
+    #boss_chat { height: 12; border: solid magenta; padding: 0 1; }
+    #org { height: 1fr; border: solid blue; padding: 0 1; }
+    .section-title { text-style: bold; }
     """
 
     BINDINGS = [
@@ -204,24 +205,30 @@ class UsagiTui(App):
         with Container(id="main"):
             with Horizontal():
                 with Container(id="left"):
-                    yield Static("操作", classes="box")
-                    yield Button("Start (clear STOP)", id="start")
-                    yield Button("Stop (create STOP)", id="stop")
+                    yield Button("▶ Start", id="start")
+                    yield Button("■ Stop", id="stop")
 
-                    yield Static("社長チャット", classes="box")
-                    yield _BossChatBox(id="boss_chat")
+                    chat = _BossChatBox(id="boss_chat")
+                    chat.border_title = "社長チャット"
+                    yield chat
                     yield Input(placeholder="社長へメッセージ…", id="boss_input")
                     yield Button("Send", id="boss_send")
 
-                    yield Static("入力", classes="box")
-                    yield _InputsBox(id="inputs")
+                    inputs_box = _InputsBox(id="inputs")
+                    inputs_box.border_title = "入力"
+                    yield inputs_box
                 with Container(id="right"):
-                    yield Static("状態", classes="box")
-                    yield _StatusBox(id="status")
-                    yield Static("組織図", classes="box")
-                    yield _OrgBox(id="org")
-            yield Static("イベントログ", classes="box")
-            yield _EventsBox(id="events")
+                    status_box = _StatusBox(id="status")
+                    status_box.border_title = "状態"
+                    yield status_box
+
+                    org_box = _OrgBox(id="org")
+                    org_box.border_title = "組織図"
+                    yield org_box
+
+            events_box = _EventsBox(id="events")
+            events_box.border_title = "イベントログ"
+            yield events_box
         yield Footer()
 
     def on_mount(self) -> None:

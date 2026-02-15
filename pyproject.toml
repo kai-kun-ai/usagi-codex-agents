@@ -36,6 +36,7 @@ known-first-party = ["usagi"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.uv]
 # optional; keeps uv happy if used
