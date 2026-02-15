@@ -71,6 +71,7 @@ class AgentDef:
     model: str = "codex"
 
     emoji: str = ""  # 表示用（例: 🐰 🐶）
+    profile: str = ""  # Codex/CLIプロファイル名（profiles.toml参照）
     reports_to: str = ""  # 上長id（最上位は空）
     can_command: list[str] = field(default_factory=list)  # 指揮できる相手のid
 
@@ -170,6 +171,7 @@ def _parse_agent_new(data: dict) -> AgentDef:
         role=str(data.get("role", ROLE_WORKER)),
         model=str(data.get("model", "codex")),
         emoji=str(data.get("emoji", "")),
+        profile=str(data.get("profile", "")),
         reports_to=str(data.get("reports_to", "")),
         can_command=list(data.get("can_command", []) or []),
         personality_path=data.get("personality"),
