@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-
 	"github.com/kai-kun-ai/usagi-codex-agents/internal/autopilot"
 )
 
@@ -76,33 +74,6 @@ func Run(cfg Config) error {
 		return nil
 	})
 
-	w, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-
-	addDir := func(dir string) error {
-		return w.Add(dir)
-	}
-
-	if cfg.Recursive {
-		err = filepath.WalkDir(cfg.InputsDir, func(p string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return nil
-			}
-			if d.IsDir() {
-				_ = addDir(p)
-			}
-			return nil
-		})
-	} else {
-		err = addDir(cfg.InputsDir)
-	}
-	if err != nil {
-		return err
-	}
-
 	// worker
 	go func() {
 		for p := range jobs {
@@ -110,28 +81,31 @@ func Run(cfg Config) error {
 		}
 	}()
 
-	// events loop
+	// polling loop (fsnotifyを使わず、一定間隔でscanする)
+	tick := time.NewTicker(750 * time.Millisecond)
+	defer tick.Stop()
 	stopTick := time.NewTicker(cfg.PollStopInterval)
 	defer stopTick.Stop()
 
+	scan := func() {
+		filepath.WalkDir(cfg.InputsDir, func(p string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return nil
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(strings.ToLower(p), ".md") {
+				deb.Enqueue(p)
+			}
+			return nil
+		})
+	}
+
 	for {
 		select {
-		case ev := <-w.Events:
-			if ev.Op&(fsnotify.Create|fsnotify.Write) == 0 {
-				continue
-			}
-			// add new subdir in recursive mode
-			if cfg.Recursive {
-				if fi, statErr := os.Stat(ev.Name); statErr == nil && fi.IsDir() {
-					_ = w.Add(ev.Name)
-					continue
-				}
-			}
-			if strings.HasSuffix(strings.ToLower(ev.Name), ".md") {
-				deb.Enqueue(ev.Name)
-			}
-		case err := <-w.Errors:
-			return err
+		case <-tick.C:
+			scan()
 		case <-stopTick.C:
 			if autopilot.StopRequested(cfg.StopFileRoot) {
 				return nil
