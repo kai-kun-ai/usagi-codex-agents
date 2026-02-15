@@ -21,18 +21,17 @@ from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from usagi.announce import announce
 from usagi.agent_chain import boss_handle_spec, lead_tick, manager_tick, worker_tick
-from usagi.boss_tick import boss_tick
-from usagi.peer_assist import assist_tick
+from usagi.announce import announce
 from usagi.boss_autopick import boss_autopick
-from usagi.approval_pipeline import run_approval_pipeline
+from usagi.boss_tick import boss_tick
 from usagi.org import load_org
+from usagi.peer_assist import assist_tick
+from usagi.report_state import update_boss_report
 from usagi.runtime import load_runtime
 from usagi.spec import parse_spec_markdown
 from usagi.state import AgentStatus, load_status, save_status
 from usagi.validate import validate_spec
-from usagi.report_state import update_boss_report
 
 
 @dataclass
@@ -186,17 +185,11 @@ class WatchWorker:
         # 項目不足でも AI に咀嚼させるため strict=False
         vr = validate_spec(spec)
         if vr.warnings:
-            self._event(
-                f"warnings ({p.name}): "
-                + "; ".join(vr.warnings)
-            )
+            self._event(f"warnings ({p.name}): " + "; ".join(vr.warnings))
         # spec の objective/tasks が空でも続行（AIが推測する）
         if not spec.objective and not spec.tasks and not raw_text.strip():
             # 本当に空の場合だけ弾く
-            report = (
-                "# usagi watch: 読み込みエラー\n\n"
-                "入力ファイルが空です。\n"
-            )
+            report = "# usagi watch: 読み込みエラー\n\n入力ファイルが空です。\n"
             self._write_report(p, report)
             self.state.set_mtime_ns(p, file_stat.st_mtime_ns)
             self.state.save()
@@ -252,7 +245,8 @@ class WatchWorker:
         try:
             self._event(
                 "pipeline start: "
-                f"project={project} job_id={job_id} offline={True if self.dry_run else self.offline} "
+                f"project={project} job_id={job_id} "
+                f"offline={True if self.dry_run else self.offline} "
                 f"use_worker_container={runtime.use_worker_container}"
             )
             # Boss step only: plan + delegate via mailbox.
@@ -266,7 +260,9 @@ class WatchWorker:
                 model=self.model,
                 offline=True if self.dry_run else self.offline,
                 workdir=workdir,
-                input_rel=str(p.relative_to(self.inputs_dir)) if self.inputs_dir in p.parents else p.name,
+                input_rel=str(p.relative_to(self.inputs_dir))
+                if self.inputs_dir in p.parents
+                else p.name,
                 job_id=job_id,
             )
             self._event("boss delegated")
@@ -291,7 +287,9 @@ class WatchWorker:
             self._event(f"終了: {p.name}")
             if self.status_path is not None:
                 status_store = load_status(self.status_path)
-                status_store.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="idle", task=""))
+                status_store.set(
+                    AgentStatus(agent_id="boss", name="社長うさぎ", state="idle", task="")
+                )
                 save_status(self.status_path, status_store)
 
             # mtime更新は、最後に必ず行う（st変数の上書きを避ける）
@@ -311,7 +309,9 @@ class WatchWorker:
         with self.event_log_path.open("a", encoding="utf-8") as f:
             f.write(f"[{ts}] {msg}\n")
 
-    def _write_report(self, src: Path, report: str, *, spec=None, job_id: str = "", messages=None) -> Path:
+    def _write_report(
+        self, src: Path, report: str, *, spec=None, job_id: str = "", messages=None
+    ) -> Path:
         """outputs/report.md を更新する（社長用の状態ファイル）。"""
 
         try:

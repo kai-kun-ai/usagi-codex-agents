@@ -15,16 +15,15 @@ import logging
 import time
 from pathlib import Path
 
-from usagi.agents import AgentMessage, CodexCLIBackend, OfflineBackend, UsagiAgent
 from usagi.agent_memory import append_memory, read_memory
+from usagi.agents import AgentMessage, CodexCLIBackend, OfflineBackend, UsagiAgent
 from usagi.artifacts import write_artifact
 from usagi.git_ops import GitRepo, team_branch
-from usagi.report_state import update_boss_report
-from usagi.mailbox_parse import MailMessage
 from usagi.mailbox import archive_message, deliver_markdown, list_inbox
 from usagi.mailbox_parse import parse_mail_markdown
 from usagi.org import Organization
 from usagi.prompt_compact import compact_for_prompt
+from usagi.report_state import update_boss_report
 from usagi.runtime import RuntimeMode
 from usagi.spec import UsagiSpec
 from usagi.state import AgentStatus, load_status, save_status
@@ -43,7 +42,9 @@ def _event(root: Path, msg: str) -> None:
         return
 
 
-def _set(root: Path, status_path: Path | None, agent_id: str, name: str, state: str, task: str) -> None:
+def _set(
+    root: Path, status_path: Path | None, agent_id: str, name: str, state: str, task: str
+) -> None:
     if status_path is not None:
         st = load_status(status_path)
         st.set(AgentStatus(agent_id=agent_id, name=name, state=state, task=task))
@@ -85,7 +86,9 @@ def boss_handle_spec(
             "必ず `## 決定事項` を含め、箇条書きで書いてください。"
         ),
     )
-    plan_prompt = f"目的:\n{spec.objective}\n\nやること:\n" + "\n".join([f"- {t}" for t in spec.tasks])
+    plan_prompt = f"目的:\n{spec.objective}\n\nやること:\n" + "\n".join(
+        [f"- {t}" for t in spec.tasks]
+    )
     plan_msg = boss_agent.run(user_prompt=plan_prompt, model=model, backend=backend)
     write_artifact(workdir, "10-boss-plan.md", plan_msg.content)
 
@@ -95,13 +98,28 @@ def boss_handle_spec(
         to_agent=assignment_manager.id,
         title=f"委任: {spec.project or 'default'}",
         kind="boss_plan",
-        body=compact_for_prompt(plan_msg.content, stage="boss_plan_to_manager", max_chars=runtime.compress.max_chars_default, enabled=runtime.compress.enabled),
+        body=compact_for_prompt(
+            plan_msg.content,
+            stage="boss_plan_to_manager",
+            max_chars=runtime.compress.max_chars_default,
+            enabled=runtime.compress.enabled,
+        ),
     )
 
     _set(root, status_path, boss.id, boss.name or boss.id, "idle", "")
 
 
-def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org: Organization, runtime: RuntimeMode, model: str, offline: bool, repo_root: Path) -> None:
+def manager_tick(
+    *,
+    root: Path,
+    outputs_dir: Path,
+    status_path: Path | None,
+    org: Organization,
+    runtime: RuntimeMode,
+    model: str,
+    offline: bool,
+    repo_root: Path,
+) -> None:
     """Manager inbox handler.
 
     Handles:
@@ -192,8 +210,10 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
                 role="planner",
                 system_prompt=(
                     "あなたは部長(manager)です。\n"
-                    "課長のレビュー結果を踏まえ、課ブランチを main にマージしてよいか判断してください。\n"
-                    "判断は 'MERGE_OK' / 'NEED_MORE_REVIEW' / 'ESCALATE_TO_BOSS' のいずれかを必ず含めてください。"
+                    "課長のレビュー結果を踏まえ、"
+                    "課ブランチを main にマージしてよいか判断してください。\n"
+                    "判断は 'MERGE_OK' / 'NEED_MORE_REVIEW' / "
+                    "'ESCALATE_TO_BOSS' のいずれかを必ず含めてください。"
                 ),
             )
             decision_msg = agent.run(user_prompt=msg.body, model=model, backend=backend)
@@ -214,8 +234,16 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
                     _event(root, f"merge failed: {type(e).__name__}: {e}")
 
             body = (
-                "## 部長判断\n" + decision_msg.content.strip() + "\n\n" +
-                "(元のレビュー結果)\n" + compact_for_prompt(msg.body, stage="manager_review", max_chars=runtime.compress.max_chars_default, enabled=runtime.compress.enabled)
+                "## 部長判断\n"
+                + decision_msg.content.strip()
+                + "\n\n"
+                + "(元のレビュー結果)\n"
+                + compact_for_prompt(
+                    msg.body,
+                    stage="manager_review",
+                    max_chars=runtime.compress.max_chars_default,
+                    enabled=runtime.compress.enabled,
+                )
             )
 
             deliver_markdown(
@@ -229,7 +257,13 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
 
             # update boss report directly as well (so boss can pick next)
             try:
-                spec = UsagiSpec(project="usagi-project", objective=msg.title, tasks=[], constraints=[], context="")
+                spec = UsagiSpec(
+                    project="usagi-project",
+                    objective=msg.title,
+                    tasks=[],
+                    constraints=[],
+                    context="",
+                )
                 update_boss_report(
                     outputs_dir=outputs_dir,
                     spec=spec,
@@ -238,8 +272,14 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
                     input_rel=msg.title,
                     messages=[decision_msg],
                     note="部長: レビュー結果を受けて判断しました。",
-                    boss_summary=decision_msg.content.splitlines()[0] if decision_msg.content else "",
-                    boss_decisions=[line.strip("- ") for line in decision_msg.content.splitlines() if line.strip().startswith("-")],
+                    boss_summary=decision_msg.content.splitlines()[0]
+                    if decision_msg.content
+                    else "",
+                    boss_decisions=[
+                        line.strip("- ")
+                        for line in decision_msg.content.splitlines()
+                        if line.strip().startswith("-")
+                    ],
                 )
             except Exception:
                 pass
@@ -252,7 +292,15 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
         archive_message(root=root, agent_id=mgr.id, message_path=p)
 
 
-def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtime: RuntimeMode, model: str, offline: bool) -> None:
+def lead_tick(
+    *,
+    root: Path,
+    status_path: Path | None,
+    org: Organization,
+    runtime: RuntimeMode,
+    model: str,
+    offline: bool,
+) -> None:
     lead = org.find("dev_impl_lead")
     mgr = org.find("dev_mgr")
     if lead is None:
@@ -360,7 +408,16 @@ def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtim
         archive_message(root=root, agent_id=lead.id, message_path=p)
 
 
-def worker_tick(*, root: Path, status_path: Path | None, org: Organization, runtime: RuntimeMode, model: str, offline: bool, repo_root: Path) -> None:
+def worker_tick(
+    *,
+    root: Path,
+    status_path: Path | None,
+    org: Organization,
+    runtime: RuntimeMode,
+    model: str,
+    offline: bool,
+    repo_root: Path,
+) -> None:
     worker = org.find("dev_w1")
     lead = org.find("dev_impl_lead")
     if worker is None or lead is None:
@@ -379,7 +436,9 @@ def worker_tick(*, root: Path, status_path: Path | None, org: Organization, runt
         _set(root, status_path, worker.id, worker.name or worker.id, "working", "implement")
 
         # Minimal fake spec
-        spec = UsagiSpec(project="usagi-project", objective=msg.title, tasks=[], constraints=[], context="")
+        spec = UsagiSpec(
+            project="usagi-project", objective=msg.title, tasks=[], constraints=[], context=""
+        )
         workdir = repo_root / "jobs" / "worker" / p.stem
         workdir.mkdir(parents=True, exist_ok=True)
 

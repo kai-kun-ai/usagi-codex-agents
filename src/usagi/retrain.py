@@ -16,6 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from usagi.approval_pipeline import _run_3persona_vote  # reuse existing vote runner
 from usagi.git_ops import GitRepo
 from usagi.human_judgement import append_human_judgement
 from usagi.mailbox import deliver_markdown
@@ -23,7 +24,6 @@ from usagi.org import Organization
 from usagi.prompt_compact import compact_for_prompt
 from usagi.runtime import RuntimeMode
 from usagi.vote import decide_2of3
-from usagi.approval_pipeline import _run_3persona_vote  # reuse existing vote runner
 
 
 @dataclass(frozen=True)
@@ -160,7 +160,7 @@ def decide_and_apply(
             return "vote disabled"
 
         # run board vote (2of3)
-        from usagi.agents import OfflineBackend, CodexCLIBackend
+        from usagi.agents import CodexCLIBackend, OfflineBackend
 
         backend = OfflineBackend() if offline else CodexCLIBackend()
         votes = _run_3persona_vote(
@@ -172,7 +172,9 @@ def decide_and_apply(
                 f"再教育提案: {prop.target_id}\n"
                 f"理由: {prop.reason}\n"
                 f"対象: {prop.target_path}\n"
-                f"パッチ:\n{compact_for_prompt(prop.patch, stage='retrain_patch', max_chars=2500, enabled=runtime.compress.enabled)}\n"
+                "パッチ:\n"
+                f"{compact_for_prompt(prop.patch, stage='retrain_patch', max_chars=2500, enabled=runtime.compress.enabled)}"  # noqa: E501
+                "\n"
             ),
         )
         outcome = decide_2of3(votes)

@@ -30,7 +30,9 @@ def _event(root: Path, msg: str) -> None:
         return
 
 
-def boss_autopick(*, root: Path, outputs_dir: Path, org: Organization, runtime: RuntimeMode) -> None:
+def boss_autopick(
+    *, root: Path, outputs_dir: Path, org: Organization, runtime: RuntimeMode
+) -> None:
     report = outputs_dir / "report.md"
     if not report.exists():
         return

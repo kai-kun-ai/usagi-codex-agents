@@ -550,9 +550,7 @@ class UsagiTui(App):
         # focus indicator (bottom bar)
         try:
             focused = getattr(self, "focused", None)
-            self.query_one("#focus_bar", Static).update(
-                f"Focus: {_focused_window_label(focused)}"
-            )
+            self.query_one("#focus_bar", Static).update(f"Focus: {_focused_window_label(focused)}")
         except Exception:
             pass
 
@@ -674,7 +672,11 @@ class UsagiTui(App):
                 from usagi.state import AgentStatus, load_status, save_status
 
                 st = load_status(self.root / ".usagi/status.json")
-                st.set(AgentStatus(agent_id="secretary", name="秘書クマ", state="working", task="reply"))
+                st.set(
+                    AgentStatus(
+                        agent_id="secretary", name="秘書クマ", state="working", task="reply"
+                    )
+                )
                 save_status(self.root / ".usagi/status.json", st)
                 ts = time.strftime("%Y-%m-%d %H:%M:%S")
                 with (self.root / ".usagi/events.log").open("a", encoding="utf-8") as f:
@@ -723,7 +725,11 @@ class UsagiTui(App):
                 from usagi.state import AgentStatus, load_status, save_status
 
                 st = load_status(self.root / ".usagi/status.json")
-                st.set(AgentStatus(agent_id="secretary", name="秘書クマ", state="working", task="summarize"))
+                st.set(
+                    AgentStatus(
+                        agent_id="secretary", name="秘書クマ", state="working", task="summarize"
+                    )
+                )
                 save_status(self.root / ".usagi/status.json", st)
                 ts0 = time.strftime("%Y-%m-%d %H:%M:%S")
                 with (self.root / ".usagi/events.log").open("a", encoding="utf-8") as f:

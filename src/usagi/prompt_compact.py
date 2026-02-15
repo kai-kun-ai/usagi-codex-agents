@@ -16,11 +16,12 @@ import logging
 
 from usagi.compress import CompressionConfig, compress_text
 
-
 DEFAULT_MAX_CHARS = 2500
 
 
-def compact_for_prompt(text: str, *, stage: str, max_chars: int = DEFAULT_MAX_CHARS, enabled: bool = True) -> str:
+def compact_for_prompt(
+    text: str, *, stage: str, max_chars: int = DEFAULT_MAX_CHARS, enabled: bool = True
+) -> str:
     """Compact long text for prompt usage and log the ratio."""
 
     if not enabled:

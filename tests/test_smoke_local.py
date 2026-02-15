@@ -1,7 +1,7 @@
 """Tests that the local (non-Docker) smoke-test path works."""
 
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

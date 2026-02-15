@@ -34,11 +34,7 @@ def compress_text(text: str, cfg: CompressionConfig | None = None) -> str:
     head = int(cfg.max_chars * 0.6)
     tail = cfg.max_chars - head
 
-    return (
-        t[:head]
-        + "\n\n<!-- usagi: compressed -->\n\n"
-        + t[-tail:]
-    )
+    return t[:head] + "\n\n<!-- usagi: compressed -->\n\n" + t[-tail:]
 
 
 def summarize_report_to_memory(report_md: str) -> str:

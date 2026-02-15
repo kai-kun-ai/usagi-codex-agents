@@ -78,15 +78,15 @@ def run_demo_forever(cfg: DemoConfig) -> None:
 
         # occasionally create/update an input
         if i % 5 == 0:
-            p = root / "inputs" / f"demo-{i//5:03d}.md"
+            p = root / "inputs" / f"demo-{i // 5:03d}.md"
             p.write_text(
-                "# usagi spec\n\n" f"title: demo {i//5:03d}\n" "\n## request\n\nデモです。\n",
+                f"# usagi spec\n\ntitle: demo {i // 5:03d}\n\n## request\n\nデモです。\n",
                 encoding="utf-8",
             )
             _append_event(events, f"DEMO: input updated: {p.name}")
 
             # also write a fake output
-            out = root / "outputs" / f"demo-{i//5:03d}.report.md"
+            out = root / "outputs" / f"demo-{i // 5:03d}.report.md"
             out.write_text(
                 "# DEMO report\n\n- This is a demo output.\n",
                 encoding="utf-8",

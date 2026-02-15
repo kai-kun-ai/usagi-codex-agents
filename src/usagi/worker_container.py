@@ -59,6 +59,7 @@ def _ensure_worker_image(*, repo_root: Path, image: str, image_build: str) -> No
         capture_output=True,
     )
 
+
 try:
     # profiles.py が導入済みの場合はそれを使う
     from usagi.profiles import ProfileDef  # type: ignore
@@ -70,7 +71,6 @@ except Exception:  # pragma: no cover
         codex_config: str = ""
         docker_image: str = "usagi-worker:latest"
         env: dict[str, str] = None  # type: ignore[assignment]
-
 
 
 @dataclass
@@ -204,10 +204,12 @@ def build_container_run_cmd(
         image = getattr(profile, "docker_image", "") or image
         codex_config = getattr(profile, "codex_config", "")
         if codex_config:
-            env_args.extend([
-                "-v",
-                f"{codex_config}:/home/worker/.codex/config.toml:ro",
-            ])
+            env_args.extend(
+                [
+                    "-v",
+                    f"{codex_config}:/home/worker/.codex/config.toml:ro",
+                ]
+            )
         extra_env = getattr(profile, "env", None) or {}
         for k, v in extra_env.items():
             env_args.extend(["-e", f"{k}={v}"])
@@ -273,7 +275,7 @@ def build_worker_entry_cmd(
         "/repo_workdir",
         "--model",
         model,
-        *( ["--offline"] if offline else [] ),
+        *(["--offline"] if offline else []),
         "--org",
         "/repo_org.toml",
         "--runtime",

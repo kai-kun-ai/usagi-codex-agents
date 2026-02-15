@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from usagi.agents import CodexCLIBackend, OfflineBackend, UsagiAgent
 from usagi.agent_memory import append_memory, read_memory
+from usagi.agents import CodexCLIBackend, OfflineBackend, UsagiAgent
 from usagi.mailbox import archive_message, deliver_markdown, list_inbox
 from usagi.mailbox_parse import parse_mail_markdown
 from usagi.org import Organization
@@ -41,7 +41,11 @@ def assist_tick(
 
         if status_path is not None:
             st = load_status(status_path)
-            st.set(AgentStatus(agent_id=agent_id, name=a.name or agent_id, state="working", task="assist"))
+            st.set(
+                AgentStatus(
+                    agent_id=agent_id, name=a.name or agent_id, state="working", task="assist"
+                )
+            )
             save_status(status_path, st)
 
         mem = read_memory(root, agent_id, max_chars=1500)
@@ -55,7 +59,14 @@ def assist_tick(
             ),
         )
         prompt = (
-            "## 依頼\n" + compact_for_prompt(msg.body, stage=f"assist_req_{agent_id}", max_chars=2500, enabled=runtime.compress.enabled) + "\n\n"
+            "## 依頼\n"
+            + compact_for_prompt(
+                msg.body,
+                stage=f"assist_req_{agent_id}",
+                max_chars=2500,
+                enabled=runtime.compress.enabled,
+            )
+            + "\n\n"
             "## あなたのメモリ\n" + (mem or "(なし)")
         )
         resp = agent.run(user_prompt=prompt, model=model, backend=backend)

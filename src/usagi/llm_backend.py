@@ -87,4 +87,3 @@ class LLM:
 
         # Claude: CLI behavior varies; default to stdin-based prompt.
         return CLIBackend(cmd).run(full_prompt, env=env, use_stdin=True).strip()
-

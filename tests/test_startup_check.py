@@ -8,7 +8,10 @@ def test_startup_check_offline_noop(tmp_path: Path) -> None:
     rt = RuntimeMode()
     log = tmp_path / "events.log"
     run_startup_check(
-        runtime=rt, model="codex", offline=True, event_log_path=log,
+        runtime=rt,
+        model="codex",
+        offline=True,
+        event_log_path=log,
     )
     text = log.read_text(encoding="utf-8")
     assert "offline -> skip" in text
@@ -19,7 +22,10 @@ def test_startup_check_cli_detection(tmp_path: Path) -> None:
     rt = RuntimeMode()
     log = tmp_path / "events.log"
     run_startup_check(
-        runtime=rt, model="codex", offline=False, event_log_path=log,
+        runtime=rt,
+        model="codex",
+        offline=False,
+        event_log_path=log,
     )
     text = log.read_text(encoding="utf-8")
     assert "codex_cli=" in text

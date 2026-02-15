@@ -92,9 +92,7 @@ class DiscordClient:
             me = self._client.user
             if me and me in message.mentions:
                 # remove mention tokens from content (simple)
-                stripped = content.replace(f"<@{me.id}>", "").replace(
-                    f"<@!{me.id}>", ""
-                )
+                stripped = content.replace(f"<@{me.id}>", "").replace(f"<@!{me.id}>", "")
                 stripped = stripped.strip()
                 if stripped:
                     write_boss_input(
