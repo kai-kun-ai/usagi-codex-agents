@@ -54,7 +54,7 @@ make d-shell WORKDIR=$PWD PROFILE=alice
 
 ## 5. コンテナ内でサブスクログイン（トークン取り込み）
 
-### 4.1 Codex（ChatGPTアカウント）
+### 5.1 Codex（ChatGPTアカウント）
 
 ```bash
 codex
@@ -63,7 +63,7 @@ codex
 - 初回起動時にログインが走ります。
 - 成功するとログイン状態が `/root/.codex` に保存されます（ホスト側のプロファイルへ永続化）。
 
-### 4.2 Claude Code（Claude Pro/Max/Teams/Enterprise）
+### 5.2 Claude Code（Claude Pro/Max/Teams/Enterprise）
 
 ```bash
 claude
@@ -75,7 +75,7 @@ claude
 
 ## 6. usagi を起動して動作確認
 
-### 5.1 統合CUI（おすすめ）
+### 6.1 統合CUI（おすすめ）
 
 ホスト側で（コンテナを別途起動する必要なし）:
 
@@ -94,7 +94,7 @@ make demo
 
 > まずは `--offline` で UI/監視/レポート出力の流れを確認するのが安全です。
 
-### 5.2 inputs を投入して watch を動かす
+### 6.2 inputs を投入して watch を動かす
 
 コンテナ内で、サンプル指示書を inputs に置きます:
 
@@ -110,7 +110,7 @@ ls -la outputs
 cat outputs/hello.report.md
 ```
 
-### 5.3 オンライン（API/CLI）で動かす
+### 6.3 オンライン（API/CLI）で動かす
 
 OFFLINEを外して実行してください。
 
