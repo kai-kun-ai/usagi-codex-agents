@@ -76,6 +76,14 @@ usagi autopilot-start --offline
 - **トークン文字列を手でコピペして保存する必要はありません**。公式CLIのログイン状態がプロファイルディレクトリに保存されます。
 - `.usagi/sessions/**` の中身は秘密情報を含みうるため、**git管理しない**（.gitignore対象）前提です。
 
+## ハンズオン
+
+完全な手順書（ログイン→CUI→inputs投入→outputs確認）:
+
+- `samples/hands-on/README.md`
+
+---
+
 ## CLI（主要）
 
 ### 統合CUI
