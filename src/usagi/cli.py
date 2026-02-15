@@ -14,6 +14,7 @@ from usagi.spec import parse_spec_markdown
 from usagi.state import load_status
 from usagi.tui import run_tui
 from usagi.validate import validate_spec
+from usagi.logging_setup import setup_logging
 from usagi.watch import watch_inputs
 
 APP_HELP = "🐰 うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI"
@@ -71,6 +72,8 @@ def run(
     ),
 ) -> None:
     """Markdown指示書→マルチエージェント実行→レポート出力。"""
+    setup_logging(root=Path("."), level="INFO")
+
     if not spec.exists():
         console.print(f"❌ 指示書が見つかりません: {spec}", style="red")
         raise typer.Exit(code=1)
@@ -112,6 +115,7 @@ def watch(
     offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
 ) -> None:
     """inputsフォルダを監視して指示書を自動処理する。"""
+    setup_logging(root=Path("."), level="INFO")
     console.print(f"watching: {inputs} -> {outputs}", style="cyan")
     watch_inputs(
         inputs_dir=inputs,
@@ -142,6 +146,7 @@ def autopilot_start(
     offline: bool = typer.Option(False, "--offline", help="APIを呼ばずに動作確認"),
 ) -> None:
     """autopilot start（watchを止めるまで走らせる）。"""
+    setup_logging(root=Path("."), level="INFO")
     clear_stop(Path("."))
     console.print("autopilot start -> watch", style="cyan")
 

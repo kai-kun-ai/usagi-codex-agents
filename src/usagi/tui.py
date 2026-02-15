@@ -24,6 +24,7 @@ from usagi.autopilot import clear_stop, request_stop, stop_requested
 from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.demo import DemoConfig, run_demo_forever
 from usagi.display import display_name
+from usagi.logging_setup import setup_logging
 from usagi.org import load_org
 from usagi.secretary import (
     SecretaryAgent,
@@ -706,5 +707,8 @@ def run_tui(*, root: Path, org_path: Path, model: str, offline: bool, demo: bool
     # ここでは解決しない（TUI側のフォールバック探索に任せる）。
     # events.logが読めるように最低限作っておく
     (root / ".usagi").mkdir(parents=True, exist_ok=True)
+
+    setup_logging(root=root, level="INFO")
+
     # Textual起動
     UsagiTui(root=root, org_path=org_path, model=model, offline=offline, demo=demo).run()
