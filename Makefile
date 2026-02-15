@@ -1,19 +1,16 @@
-.PHONY: test lint d-test
+.PHONY: test go-test d-test d-shell
 
-lint:
-	ruff check .
+go-test:
+	go test ./...
 
-test: lint
-	pytest
+test: go-test
 
-# Docker前提のテスト（Docker内で lint+pytest を回す）
+# Docker前提のテスト
 d-test:
-	docker build -t usagi-dev .
-	docker run --rm usagi-dev make test
+	docker build -t usagi-corp-dev .
+	docker run --rm usagi-corp-dev version
 
-# Dockerコンテナに入って公式CLIでログイン等を行う
+# Dockerコンテナに入る（codex/claude login等）
 d-shell:
-	docker build -t usagi-dev .
-	docker run --rm -it \
-	  -v "$$PWD":/app \
-	  usagi-dev bash
+	docker build -t usagi-corp-dev .
+	docker run --rm -it -v "$$PWD":/app usagi-corp-dev bash
