@@ -40,6 +40,15 @@ emoji = "🦊"
 role = "manager"
 model = "codex"
 reports_to = "boss"
+can_command = ["dev_lead"]
+
+[[agents]]
+id = "dev_lead"
+name = "開発課長フクロウ"
+emoji = "🦉"
+role = "lead"
+model = "codex"
+reports_to = "dev_mgr"
 can_command = ["w1", "w2"]
 
 [[agents]]
@@ -49,7 +58,7 @@ emoji = "🐿️"
 role = "worker"
 model = "codex"
 profile = "account_a"
-reports_to = "dev_mgr"
+reports_to = "dev_lead"
 
 [[agents]]
 id = "w2"
@@ -58,7 +67,7 @@ emoji = "🐿️"
 role = "worker"
 model = "codex"
 profile = "account_b"
-reports_to = "dev_mgr"
+reports_to = "dev_lead"
 
 [[agents]]
 id = "qa_mgr"
