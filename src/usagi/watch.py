@@ -210,8 +210,7 @@ class WatchWorker:
             # workerコンテナに実行を委譲
             from usagi.worker_container import run_approval_in_worker_container
 
-            cname = f"usagi-worker-{job_id}"
-            self._event(f"worker_container start: {cname}")
+            self._event("worker_container start")
             r = run_approval_in_worker_container(
                 repo_root=Path(".").resolve(),
                 spec_path=p.resolve(),
@@ -220,15 +219,14 @@ class WatchWorker:
                 offline=False,
                 org_path=org_file.resolve(),
                 runtime_path=runtime_file.resolve(),
-                container_name=cname,
+                image_build=runtime.worker_image_build,
             )
-            self._event(f"worker_container end: {cname} (code={r.returncode})")
+            self._event(f"worker_container end (code={r.returncode})")
 
             if r.returncode != 0:
                 # stdout/stderrをそのまま貼ると secrets の危険があるので最小限だけ
                 report = (
                     "# usagi watch: worker container failed\n\n"
-                    f"- container: {cname}\n"
                     f"- exit_code: {r.returncode}\n"
                 )
                 res = type("_Res", (), {"report": report})

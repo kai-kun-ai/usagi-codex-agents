@@ -22,6 +22,43 @@ from pathlib import Path
 
 from usagi.org import ROLE_BOSS, ROLE_LEAD, ROLE_MANAGER, AgentDef, Organization
 
+
+def _image_exists(image: str) -> bool:
+    r = subprocess.run(
+        ["docker", "image", "inspect", image],
+        check=False,
+        capture_output=True,
+    )
+    return r.returncode == 0
+
+
+def _ensure_worker_image(*, repo_root: Path, image: str, image_build: str) -> None:
+    """worker用イメージを用意する。
+
+    image_build:
+      - auto: 無ければ build
+      - never: 無ければ例外
+    """
+
+    if _image_exists(image):
+        return
+
+    if image_build == "never":
+        msg = (
+            f"worker image not found: {image}. "
+            "Please build it first (e.g. docker build -f Dockerfile.worker "
+            "-t usagi-worker:latest .)"
+        )
+        raise RuntimeError(msg)
+
+    # auto
+    subprocess.run(
+        ["docker", "build", "-f", "Dockerfile.worker", "-t", image, "."],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+
 try:
     # profiles.py が導入済みの場合はそれを使う
     from usagi.profiles import ProfileDef  # type: ignore
@@ -204,7 +241,6 @@ def build_worker_entry_cmd(
     offline: bool,
     org_path: Path,
     runtime_path: Path,
-    container_name: str,
     image: str = "usagi-worker:latest",
 ) -> list[str]:
     """approval pipeline を worker コンテナ内で実行するコマンドを構築する。"""
@@ -214,8 +250,6 @@ def build_worker_entry_cmd(
         "docker",
         "run",
         "--rm",
-        "--name",
-        container_name,
         "-v",
         f"{repo_root}:/repo",
         "-v",
@@ -258,9 +292,11 @@ def run_approval_in_worker_container(
     offline: bool,
     org_path: Path,
     runtime_path: Path,
-    container_name: str,
     image: str = "usagi-worker:latest",
+    image_build: str = "auto",
 ) -> WorkerContainerResult:
+    _ensure_worker_image(repo_root=repo_root, image=image, image_build=image_build)
+
     cmd = build_worker_entry_cmd(
         repo_root=repo_root,
         spec_path=spec_path,
@@ -269,7 +305,6 @@ def run_approval_in_worker_container(
         offline=offline,
         org_path=org_path,
         runtime_path=runtime_path,
-        container_name=container_name,
         image=image,
     )
 
