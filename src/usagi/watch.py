@@ -148,9 +148,9 @@ class WatchWorker:
         if not p.exists():
             return
 
-        st = p.stat()
+        file_stat = p.stat()
         prev = self.state.last_mtime_ns(p)
-        if st.st_mtime_ns <= prev:
+        if file_stat.st_mtime_ns <= prev:
             return
 
         raw_text = p.read_text(encoding="utf-8")
@@ -201,9 +201,11 @@ class WatchWorker:
         announce("社長うさぎ", f"開始: {p.name}")
         self._event(f"開始: {p.name}")
         if self.status_path is not None:
-            st = load_status(self.status_path)
-            st.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="working", task=p.name))
-            save_status(self.status_path, st)
+            status_store = load_status(self.status_path)
+            status_store.set(
+                AgentStatus(agent_id="boss", name="社長うさぎ", state="working", task=p.name)
+            )
+            save_status(self.status_path, status_store)
 
         # minimal UI for background
         class _Ui:
@@ -228,30 +230,54 @@ class WatchWorker:
 
         # 意思決定者(boss/manager/lead/取締役会)はホスト側で実行。
         # workerの実装ステップだけコンテナに委譲（pipeline内部で判断）。
-        res = run_approval_pipeline(
-            spec=spec,
-            workdir=workdir,
-            model=self.model,
-            offline=True if self.dry_run else self.offline,
-            org=load_org(org_file),
-            runtime=runtime,
-            root=Path("."),
-        )
-        self._write_report(p, res.report)
+        try:
+            self._event(
+                "pipeline start: "
+                f"project={project} job_id={job_id} offline={True if self.dry_run else self.offline} "
+                f"use_worker_container={runtime.use_worker_container}"
+            )
+            res = run_approval_pipeline(
+                spec=spec,
+                workdir=workdir,
+                model=self.model,
+                offline=True if self.dry_run else self.offline,
+                org=load_org(org_file),
+                runtime=runtime,
+                root=Path("."),
+            )
+            self._write_report(p, res.report)
+            self._event("pipeline done")
+        except Exception as e:  # noqa: BLE001
+            import traceback
 
-        announce("社長うさぎ", f"終了: {p.name}")
-        self._event(f"終了: {p.name}")
-        if self.status_path is not None:
-            st = load_status(self.status_path)
-            st.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="idle", task=""))
-            save_status(self.status_path, st)
+            tb = traceback.format_exc()
+            self._event(f"pipeline error: {type(e).__name__}: {e}")
+            report = (
+                "# usagi watch: 実行エラー\n\n"
+                "パイプライン実行中に例外が発生しました。\n\n"
+                "## 例外\n\n"
+                f"- type: {type(e).__name__}\n"
+                f"- message: {e}\n\n"
+                "## traceback\n\n"
+                "```\n" + tb + "\n```\n"
+            )
+            self._write_report(p, report)
+            announce("社長うさぎ", f"失敗: {p.name}")
+        finally:
+            announce("社長うさぎ", f"終了: {p.name}")
+            self._event(f"終了: {p.name}")
+            if self.status_path is not None:
+                status_store = load_status(self.status_path)
+                status_store.set(AgentStatus(agent_id="boss", name="社長うさぎ", state="idle", task=""))
+                save_status(self.status_path, status_store)
 
-        self.state.set_mtime_ns(p, st.st_mtime_ns)
-        self.state.save()
+            # mtime更新は、最後に必ず行う（st変数の上書きを避ける）
+            self.state.set_mtime_ns(p, file_stat.st_mtime_ns)
+            self.state.save()
 
         # inputs の後処理
-        runtime = load_runtime(self.runtime_path)
-        if runtime.input_postprocess == "trash":
+        runtime2 = load_runtime(self.runtime_path)
+        if runtime2.input_postprocess == "trash":
             self._trash_input(p)
 
     def _event(self, msg: str) -> None:
