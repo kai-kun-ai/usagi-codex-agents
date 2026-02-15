@@ -88,7 +88,7 @@ def run_approval_pipeline(
     )
 
     # boss: plan (意思決定)
-    _set("boss", boss.name or boss.id, "working", f"plan: {spec.project or 'default'}")
+    _set(boss.id, boss.name or boss.id, "working", f"plan: {spec.project or 'default'}")
     boss_agent = _agent_for(
         boss,
         role="planner",
@@ -101,11 +101,11 @@ def run_approval_pipeline(
     plan = boss_agent.run(user_prompt=_build_plan_prompt(spec), model=model, backend=backend)
     msgs.append(plan)
     write_artifact(workdir, "10-boss-plan.md", plan.content)
-    _set("boss", boss.name or boss.id, "idle", "")
+    _set(boss.id, boss.name or boss.id, "idle", "")
 
     # worker: implement (差分)
     # DooD は複雑なため、まずは worktree 方式（ローカルgit）に寄せる。
-    _set("worker", worker.name or worker.id, "working", f"impl: {spec.project or 'default'}")
+    _set(worker.id, worker.name or worker.id, "working", f"impl: {spec.project or 'default'}")
     impl = _run_worker_step_worktree(
         worker=worker,
         lead=lead,
@@ -120,7 +120,7 @@ def run_approval_pipeline(
     )
     msgs.append(impl)
     write_artifact(workdir, "20-worker-impl.diff", impl.content)
-    _set("worker", worker.name or worker.id, "idle", "")
+    _set(worker.id, worker.name or worker.id, "idle", "")
 
     # apply patch (従来通り workdir に apply)
     workdir.mkdir(parents=True, exist_ok=True)
@@ -129,7 +129,7 @@ def run_approval_pipeline(
     actions.append(f"write {patch_path.name}")
 
     # lead: review/approve
-    _set("lead", lead.name or lead.id, "working", f"review: {spec.project or 'default'}")
+    _set(lead.id, lead.name or lead.id, "working", f"review: {spec.project or 'default'}")
     lead_agent = _agent_for(
         lead,
         role="reviewer",
@@ -152,12 +152,12 @@ def run_approval_pipeline(
     lead_review = lead_agent.run(user_prompt=review_prompt, model=model, backend=backend)
     msgs.append(lead_review)
     write_artifact(workdir, "30-lead-review.md", lead_review.content)
-    _set("lead", lead.name or lead.id, "idle", "")
+    _set(lead.id, lead.name or lead.id, "idle", "")
 
     approved_by_lead = "APPROVE" in lead_review.content.upper()
 
     # manager: merge decision (課ブランチをmainへ)
-    _set("manager", manager.name or manager.id, "working", f"decision: {spec.project or 'default'}")
+    _set(manager.id, manager.name or manager.id, "working", f"decision: {spec.project or 'default'}")
     manager_agent = _agent_for(
         manager,
         role="planner",
@@ -189,7 +189,7 @@ def run_approval_pipeline(
     manager_decision = manager_agent.run(user_prompt=manager_prompt, model=model, backend=backend)
     msgs.append(manager_decision)
     write_artifact(workdir, "40-manager-decision.md", manager_decision.content)
-    _set("manager", manager.name or manager.id, "idle", "")
+    _set(manager.id, manager.name or manager.id, "idle", "")
 
     decision_text = manager_decision.content.upper()
 
