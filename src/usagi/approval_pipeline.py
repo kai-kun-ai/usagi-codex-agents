@@ -23,6 +23,7 @@ from pathlib import Path
 
 from usagi.agents import AgentMessage, LLMBackend, OfflineBackend, OpenAIBackend, UsagiAgent
 from usagi.approval import Assignment, assign_default
+from usagi.artifacts import write_artifact
 from usagi.git_ops import team_branch
 from usagi.org import AgentDef, Organization
 from usagi.report import render_report
@@ -68,6 +69,13 @@ def run_approval_pipeline(
     msgs: list[AgentMessage] = []
     actions: list[str] = []
 
+    # artifacts
+    write_artifact(
+        workdir,
+        "00-spec.md",
+        _build_plan_prompt(spec),
+    )
+
     # boss: plan (意思決定)
     boss_agent = _agent_for(
         boss,
@@ -80,6 +88,7 @@ def run_approval_pipeline(
     )
     plan = boss_agent.run(user_prompt=_build_plan_prompt(spec), model=model, backend=backend)
     msgs.append(plan)
+    write_artifact(workdir, "10-boss-plan.md", plan.content)
 
     # worker: implement (差分)
     # use_worker_container が有効ならコンテナ内で実行
@@ -95,6 +104,7 @@ def run_approval_pipeline(
         offline=offline,
     )
     msgs.append(impl)
+    write_artifact(workdir, "20-worker-impl.diff", impl.content)
 
     # apply patch (従来通り workdir に apply)
     workdir.mkdir(parents=True, exist_ok=True)
@@ -118,6 +128,7 @@ def run_approval_pipeline(
     )
     lead_review = lead_agent.run(user_prompt=review_prompt, model=model, backend=backend)
     msgs.append(lead_review)
+    write_artifact(workdir, "30-lead-review.md", lead_review.content)
 
     approved_by_lead = "APPROVE" in lead_review.content.upper()
 
@@ -140,6 +151,7 @@ def run_approval_pipeline(
     )
     manager_decision = manager_agent.run(user_prompt=manager_prompt, model=model, backend=backend)
     msgs.append(manager_decision)
+    write_artifact(workdir, "40-manager-decision.md", manager_decision.content)
 
     decision_text = manager_decision.content.upper()
 
@@ -192,6 +204,7 @@ def run_approval_pipeline(
         messages=msgs,
         actions=actions,
     )
+    write_artifact(workdir, "90-report.md", report)
 
     return ApprovalRunResult(report=report, messages=msgs, assignment=assignment)
 
