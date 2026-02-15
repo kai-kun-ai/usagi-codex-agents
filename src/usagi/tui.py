@@ -13,13 +13,15 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
-from textual.widgets import Button, Footer, Header, Static
+from textual.widgets import Button, Footer, Header, Input, Static
 
 from usagi.autopilot import clear_stop, request_stop, stop_requested
+from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.demo import DemoConfig, run_demo_forever
 from usagi.state import load_status
 from usagi.watch import watch_inputs
@@ -105,6 +107,20 @@ class _InputsBox(Static):
         self.update(header + "\n\n" + "\n".join(lines))
 
 
+class _BossChatBox(Static):
+    def update_text(self, log_path: Path, max_lines: int = 25) -> None:
+        if not log_path.exists():
+            self.update("(no messages)")
+            return
+        try:
+            lines = log_path.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            self.update("(failed to read chat log)")
+            return
+        tail = lines[-max_lines:]
+        self.update("\n".join(tail) if tail else "(no messages)")
+
+
 class UsagiTui(App):
     CSS = """
     #main { height: 1fr; }
@@ -112,6 +128,7 @@ class UsagiTui(App):
     #events { height: 1fr; }
     #status { height: 1fr; }
     #inputs { height: auto; }
+    #boss_chat { height: 12; }
     """
 
     BINDINGS = [
@@ -137,6 +154,12 @@ class UsagiTui(App):
                     yield Static("操作", classes="box")
                     yield Button("Start (clear STOP)", id="start")
                     yield Button("Stop (create STOP)", id="stop")
+
+                    yield Static("社長チャット", classes="box")
+                    yield _BossChatBox(id="boss_chat")
+                    yield Input(placeholder="社長へメッセージ…", id="boss_input")
+                    yield Button("Send", id="boss_send")
+
                     yield Static("入力", classes="box")
                     yield _InputsBox(id="inputs")
                 with Container(id="right"):
@@ -190,6 +213,7 @@ class UsagiTui(App):
 
     def _refresh(self) -> None:
         self.query_one(_StatusBox).update_text(self.root)
+        self.query_one(_BossChatBox).update_text(self.root / ".usagi/chat.log")
         self.query_one(_InputsBox).update_text(
             self.root / "inputs",
             self.root / ".usagi/state.json",
@@ -214,6 +238,36 @@ class UsagiTui(App):
             clear_stop(self.root)
         if event.button.id == "stop":
             request_stop(self.root)
+        if event.button.id == "boss_send":
+            self._send_boss_message()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "boss_input":
+            self._send_boss_message()
+
+    def _send_boss_message(self) -> None:
+        inp = self.query_one("#boss_input", Input)
+        text = (inp.value or "").strip()
+        if not text:
+            return
+
+        # write to boss inbox
+        p = write_boss_input(self.root, BossInput(source="tui", text=text))
+
+        # append to chat log
+        chat = self.root / ".usagi/chat.log"
+        chat.parent.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        with chat.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] you: {text}\n")
+
+        # also to events
+        events = self.root / ".usagi/events.log"
+        with events.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] boss_inbox: saved {p.name}\n")
+
+        inp.value = ""
+        self._refresh()
 
 
 def run_tui(*, root: Path, model: str, offline: bool, demo: bool) -> None:
