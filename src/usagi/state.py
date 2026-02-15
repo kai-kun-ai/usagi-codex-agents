@@ -6,11 +6,10 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 import json
-from pathlib import Path
 import time
-
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 _WARNED_CORRUPT_STATUS: set[Path] = set()
 
