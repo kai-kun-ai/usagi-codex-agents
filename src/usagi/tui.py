@@ -110,8 +110,7 @@ def _focused_window_label(focused: object | None) -> str:
         return "mode"
     if focused_id == "secretary_input":
         return "秘書入力"
-    if focused_id == "secretary_to_input":
-        return "社長に渡す"
+    # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
     if focused_id == "inputs":
         return "入力"
 
@@ -366,11 +365,7 @@ class UsagiTui(App):
         max-height: 10;
     }
 
-    #secretary_to_input {
-        background: $accent;
-        color: $text;
-        width: 18;
-    }
+    /* secretary_to_input button removed: Ctrl+B shortcut only */
 
     #mode:focus {
         border: heavy yellow;
@@ -380,7 +375,7 @@ class UsagiTui(App):
 
     BINDINGS = [
         ("ctrl+s", "toggle", "Start/Stop"),
-        ("ctrl+b", "secretary_to_input", "社長に渡す（ボタンと同じ）"),
+        ("ctrl+b", "secretary_to_input", "社長に渡す（提出）"),
         ("d", "delete_input", "Delete selected input"),
         ("q", "quit", "Quit"),
     ]
@@ -419,7 +414,6 @@ class UsagiTui(App):
                             chat.border_title = "秘書(🐻)との対話"
                             yield chat
 
-                        # NOTE: 狭い端末でボタンが押し出されないよう縦積みにする
                         with Container(id="secretary_controls"):
                             yield Input(
                                 placeholder=(
@@ -428,9 +422,8 @@ class UsagiTui(App):
                                 ),
                                 id="secretary_input",
                             )
-                            with Horizontal(id="secretary_controls_buttons"):
-                                yield Button("社長に渡す", id="secretary_to_input")
-                                yield Static("Ctrl+B", id="secretary_to_hint")
+                            # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
+                            yield Static("Ctrl+B: 社長に渡す", id="secretary_to_hint")
 
                         inputs_box = _InputsBox(
                             inputs_dir=self.root / "inputs",
@@ -594,8 +587,6 @@ class UsagiTui(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "mode":
             self.action_toggle()
-        if event.button.id == "secretary_to_input":
-            self._secretary_to_input()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "secretary_input":
@@ -656,10 +647,20 @@ class UsagiTui(App):
             BossInput(source="secretary", text=f"秘書が input を設置しました: {p}"),
         )
 
+        # 提出したら秘書チャットをアーカイブしてクリア
+        archive = self.root / ".usagi/secretary.archive.log"
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open("a", encoding="utf-8") as f:
+            f.write(f"\n---\n[{ts}] submitted: {p.name}\n")
+            for line in dialog:
+                f.write(line + "\n")
+        log.write_text("", encoding="utf-8")
+
         events = self.root / ".usagi/events.log"
         events.parent.mkdir(parents=True, exist_ok=True)
         with events.open("a", encoding="utf-8") as f:
             f.write(f"[{ts}] secretary: placed input {p.name}\n")
+            f.write(f"[{ts}] secretary: archived+cleared chat\n")
 
         self._refresh()
 
