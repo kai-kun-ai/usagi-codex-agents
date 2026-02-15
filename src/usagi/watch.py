@@ -23,6 +23,7 @@ from watchdog.observers import Observer
 
 from usagi.announce import announce
 from usagi.agent_chain import boss_handle_spec, lead_tick, manager_tick, worker_tick
+from usagi.boss_tick import boss_tick
 from usagi.approval_pipeline import run_approval_pipeline
 from usagi.org import load_org
 from usagi.runtime import load_runtime
@@ -458,8 +459,16 @@ def watch_inputs(
                     runtime=runtime,
                     model=model,
                     offline=offline,
+                    repo_root=work_root,
                 )
-                lead_tick(root=root, status_path=status_path, org=org, runtime=runtime)
+                lead_tick(
+                    root=root,
+                    status_path=status_path,
+                    org=org,
+                    runtime=runtime,
+                    model=model,
+                    offline=offline,
+                )
                 worker_tick(
                     root=root,
                     status_path=status_path,
@@ -469,6 +478,7 @@ def watch_inputs(
                     offline=offline,
                     repo_root=work_root,
                 )
+                boss_tick(root=root, outputs_dir=outputs_dir, status_path=status_path)
             except Exception:
                 pass
 
