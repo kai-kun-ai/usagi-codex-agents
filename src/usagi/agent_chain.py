@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 
 from usagi.agents import AgentMessage, CodexCLIBackend, OfflineBackend, UsagiAgent
+from usagi.agent_memory import append_memory, read_memory
 from usagi.artifacts import write_artifact
 from usagi.git_ops import GitRepo, team_branch
 from usagi.report_state import update_boss_report
@@ -125,13 +126,33 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
                 _set(root, status_path, mgr.id, mgr.name or mgr.id, "idle", "")
                 continue
 
+            # digest using manager memory
+            _set(root, status_path, mgr.id, mgr.name or mgr.id, "working", "digest")
+            mem = read_memory(root, mgr.id, max_chars=1800)
+            digest_agent = UsagiAgent(
+                name=mgr.name or mgr.id,
+                role="planner",
+                system_prompt=(
+                    "あなたは開発部長です。社長からの委任を咀嚼し、課長へ具体的に指示してください。\n"
+                    "出力は必ず短く。形式:\n"
+                    "## 目的\n...\n\n## 指示\n- ...\n\n## 注意\n- ...\n"
+                ),
+            )
+            digest_prompt = (
+                "## 社長からの委任\n" + msg.body + "\n\n"
+                "## あなたのメモリ（過去の判断/方針）\n" + (mem or "(なし)") + "\n"
+            )
+            digest_msg = digest_agent.run(user_prompt=digest_prompt, model=model, backend=backend)
+            append_memory(root, mgr.id, f"digest: {msg.title}", digest_msg.content)
+
+            _set(root, status_path, mgr.id, mgr.name or mgr.id, "working", "brief")
             deliver_markdown(
                 root=root,
                 from_agent=mgr.id,
                 to_agent=lead.id,
                 kind="impl_request",
-                title=f"実装依頼: {msg.title}",
-                body=msg.body,
+                title=f"部長指示: {msg.title}",
+                body=digest_msg.content,
             )
 
             # report upward + cross-department share
@@ -141,7 +162,7 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
                 to_agent=runtime.boss_id,
                 kind="manager_report",
                 title=f"部長報告: {msg.title}",
-                body=msg.body,
+                body=digest_msg.content,
             )
             for peer in ["qa_mgr", "ops_mgr"]:
                 if org.find(peer) is not None:
@@ -151,7 +172,7 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
                         to_agent=peer,
                         kind="share",
                         title=f"共有: 開発着手 {msg.title}",
-                        body=msg.body,
+                        body=digest_msg.content,
                     )
 
             archive_message(root=root, agent_id=mgr.id, message_path=p)
@@ -238,20 +259,38 @@ def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtim
         msg = parse_mail_markdown(p.read_text(encoding="utf-8"))
 
         if msg.kind == "impl_request":
-            _set(root, status_path, lead.id, lead.name or lead.id, "working", "assign worker")
+            _set(root, status_path, lead.id, lead.name or lead.id, "working", "digest")
             worker = org.find("dev_w1") or org.find("dev_w2")
             if worker is None:
                 archive_message(root=root, agent_id=lead.id, message_path=p)
                 _set(root, status_path, lead.id, lead.name or lead.id, "idle", "")
                 continue
 
+            mem = read_memory(root, lead.id, max_chars=1800)
+            digest_agent = UsagiAgent(
+                name=lead.name or lead.id,
+                role="planner",
+                system_prompt=(
+                    "あなたは開発実装課長です。部長指示を咀嚼し、ワーカーへ実装指示を作ってください。\n"
+                    "出力は短く、実装に必要な情報だけ。形式:\n"
+                    "## 実装指示\n- ...\n\n## 受け入れ条件\n- ...\n\n## 注意\n- ...\n"
+                ),
+            )
+            digest_prompt = (
+                "## 部長指示\n" + msg.body + "\n\n"
+                "## あなたのメモリ（過去の判断/レビュー観点）\n" + (mem or "(なし)") + "\n"
+            )
+            brief_msg = digest_agent.run(user_prompt=digest_prompt, model=model, backend=backend)
+            append_memory(root, lead.id, f"brief: {msg.title}", brief_msg.content)
+
+            _set(root, status_path, lead.id, lead.name or lead.id, "working", "assign worker")
             deliver_markdown(
                 root=root,
                 from_agent=lead.id,
                 to_agent=worker.id,
                 kind="worker_request",
-                title=msg.title,
-                body=msg.body,
+                title=f"課長指示: {msg.title}",
+                body=brief_msg.content,
             )
 
             archive_message(root=root, agent_id=lead.id, message_path=p)
