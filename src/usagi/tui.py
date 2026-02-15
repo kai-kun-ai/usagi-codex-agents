@@ -417,7 +417,7 @@ class UsagiTui(App):
 
                         # NOTE: 左ペインの中身はスクロールさせ、下部events領域と重ならないようにする
                         with VerticalScroll(id="left_scroll"):
-                            # NOTE: 入力欄が縦に大きくなっても下部eventsと重ならないよう、先に配置する
+                            # NOTE: 入力欄が縦に大きくなっても、eventsと重ならないよう先に配置する
                             with Container(id="secretary_controls"):
                                 yield Input(
                                     placeholder=(
