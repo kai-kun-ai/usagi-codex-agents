@@ -197,6 +197,9 @@ class WatchWorker:
         workdir = self.work_root / project / job_id
         workdir.mkdir(parents=True, exist_ok=True)
 
+        # report出力用（outputs/<project>/<job_id>/...）
+        self._current_workdir = workdir  # type: ignore[attr-defined]
+
         # announce + status
         announce("社長うさぎ", f"開始: {p.name}")
         self._event(f"開始: {p.name}")
@@ -289,9 +292,41 @@ class WatchWorker:
             f.write(f"[{ts}] {msg}\n")
 
     def _write_report(self, src: Path, report: str) -> Path:
-        self.outputs_dir.mkdir(parents=True, exist_ok=True)
-        out = self.outputs_dir / f"{src.stem}.report.md"
+        """レポートを書き出す。
+
+        旧仕様は `outputs/<input_stem>.report.md` だったが、inputs の鏡になってしまう。
+        まずは project/job_id/workdir で追えるように outputs を project 配下に分離する。
+
+        互換のため、旧パスにもコピーを置く（将来削除予定）。
+        """
+
+        # workdir から project/job_id を推定する（watch が作るパス前提）
+        project = "default"
+        job_id = src.stem
+        try:
+            rel_work = self._current_workdir.relative_to(self.work_root)  # type: ignore[attr-defined]
+            parts = list(rel_work.parts)
+            if len(parts) >= 2:
+                project = parts[0]
+                job_id = parts[1]
+        except Exception:
+            # fallback
+            project = "default"
+            job_id = src.stem
+
+        out_dir = self.outputs_dir / project / job_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / "report.md"
         out.write_text(report, encoding="utf-8")
+
+        # 互換: 旧パスにもコピー
+        self.outputs_dir.mkdir(parents=True, exist_ok=True)
+        legacy = self.outputs_dir / f"{src.stem}.report.md"
+        try:
+            legacy.write_text(report, encoding="utf-8")
+        except Exception:
+            pass
+
         return out
 
     def _trash_input(self, p: Path) -> None:
