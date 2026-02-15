@@ -371,7 +371,7 @@ class UsagiTui(App):
 
         # 観測用: org解決先をeventsに1回だけ書く
         if not hasattr(self, "_org_path_logged"):
-            setattr(self, "_org_path_logged", True)
+            self._org_path_logged = True  # type: ignore[attr-defined]
             events = self.root / ".usagi/events.log"
             events.parent.mkdir(parents=True, exist_ok=True)
             ts = time.strftime("%Y-%m-%d %H:%M:%S")
