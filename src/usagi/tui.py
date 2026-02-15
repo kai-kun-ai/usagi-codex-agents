@@ -360,7 +360,11 @@ class UsagiTui(App):
         append_secretary_log(self.root, who="you", text=text)
 
         # 簡易: 秘書からの返事は固定文（後続PRでLLM整形に差し替え）
-        append_secretary_log(self.root, who="🐻 secretary", text="了解。社長に渡す内容として整理するね。")
+        append_secretary_log(
+            self.root,
+            who="🐻 secretary",
+            text="了解。社長に渡す内容として整理するね。",
+        )
 
         inp.value = ""
         self._refresh()
