@@ -25,6 +25,7 @@ from usagi.announce import announce
 from usagi.agent_chain import boss_handle_spec, lead_tick, manager_tick, worker_tick
 from usagi.boss_tick import boss_tick
 from usagi.peer_assist import assist_tick
+from usagi.boss_autopick import boss_autopick
 from usagi.approval_pipeline import run_approval_pipeline
 from usagi.org import load_org
 from usagi.runtime import load_runtime
@@ -519,6 +520,21 @@ def watch_inputs(
                     org=org,
                     runtime=runtime,
                 )
+
+                # autopick: if everyone is idle, boss can restart work
+                if status_path is not None:
+                    st = load_status(status_path)
+                    all_ids = [a.id for a in org.agents]
+                    all_idle = True
+                    for aid in all_ids:
+                        astatus = st.agents.get(aid)
+                        if astatus is None:
+                            continue
+                        if astatus.state != "idle":
+                            all_idle = False
+                            break
+                    if all_idle:
+                        boss_autopick(root=root, outputs_dir=outputs_dir, org=org, runtime=runtime)
             except Exception:
                 pass
 
