@@ -17,10 +17,14 @@ import time
 from pathlib import Path
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal
+from textual.containers import Container, Horizontal, VerticalScroll
 from textual.widgets import Button, Footer, Header, Input, Static
 
 from usagi.autopilot import clear_stop, request_stop, stop_requested
+
+
+def _mode_label(root: Path) -> str:
+    return "STOPPED" if stop_requested(root) else "RUNNING"
 from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.demo import DemoConfig, run_demo_forever
 from usagi.display import display_name
@@ -30,25 +34,9 @@ from usagi.state import load_status
 from usagi.watch import watch_inputs
 
 
-class _StatusBox(Static):
-    def update_text(self, root: Path) -> None:
-        stop = "STOP_REQUESTED" if stop_requested(root) else "RUNNING"
-        st = load_status(root / ".usagi/status.json")
-        lines = [f"mode: {stop}"]
-        if st.agents:
-            lines.append("")
-            lines.append("agents:")
-            for a in st.agents.values():
-                task = f" {a.task}" if a.task else ""
-                # status.json は name しか持たないので、ここはそのまま表示
-                lines.append(f"- {a.name} ({a.agent_id}): {a.state}{task}")
-        else:
-            lines.append("(no status)")
-        self.update("\n".join(lines))
-
-
+# NOTE: 状態表示は組織図に統合したため、専用ウィンドウは廃止。
 class _EventsBox(Static):
-    def update_text(self, log_path: Path, max_lines: int = 30) -> None:
+    def update_text(self, log_path: Path, max_lines: int = 15) -> None:
         if not log_path.exists():
             self.update("(no events yet)")
             return
@@ -154,22 +142,20 @@ class _OrgBox(Static):
 
         st = load_status(status_path)
 
-        # root nodes are those with empty reports_to
         roots = [a for a in org.agents if not a.reports_to]
 
         def line_for(agent_id: str, name: str) -> str:
             a = st.agents.get(agent_id)
             if not a:
-                return f"- {name} ({agent_id})"
+                return f"- {name}: unknown"
             task = f" {a.task}" if a.task else ""
             return f"- {name}: {a.state}{task}"
 
-        lines: list[str] = ["org chart", ""]
+        lines: list[str] = []
 
         def walk(agent_id: str, name: str, indent: int) -> None:
             prefix = "  " * indent
             lines.append(prefix + line_for(agent_id, name))
-            # children
             children = [a for a in org.agents if a.reports_to == agent_id]
             for c in children:
                 walk(c.id, display_name(c), indent + 1)
@@ -177,7 +163,7 @@ class _OrgBox(Static):
         for r in roots:
             walk(r.id, display_name(r), 0)
 
-        self.update("\n".join(lines))
+        self.update("\n".join(lines) if lines else "(empty org)")
 
 
 class UsagiTui(App):
@@ -185,10 +171,12 @@ class UsagiTui(App):
     #main { height: 1fr; }
     #left, #right { width: 1fr; }
     #events { height: 1fr; border: solid green; padding: 0 1; }
-    #status { height: 1fr; border: solid cyan; padding: 0 1; }
+    #mode { border: solid white; background: $boost; text-style: bold; }
+    /* statusウィンドウは廃止（組織図へ統合） */
     #inputs { height: auto; border: solid yellow; padding: 0 1; }
     #secretary_chat { height: 12; border: solid magenta; padding: 0 1; }
-    #org { height: 1fr; border: solid blue; padding: 0 1; }
+    #org_scroll { height: 1fr; border: solid blue; padding: 0 1; }
+    #org { height: auto; }
 
     #secretary_input {
         border: solid white;
@@ -230,8 +218,9 @@ class UsagiTui(App):
         with Container(id="main"):
             with Horizontal():
                 with Container(id="left"):
-                    yield Button("▶ Start", id="start")
-                    yield Button("■ Stop", id="stop")
+                    mode_btn = Button("", id="mode")
+                    mode_btn.border_title = "mode"
+                    yield mode_btn
 
                     chat = _SecretaryChatBox(id="secretary_chat")
                     chat.border_title = "秘書(🐻)との対話"
@@ -244,13 +233,10 @@ class UsagiTui(App):
                     inputs_box.border_title = "入力"
                     yield inputs_box
                 with Container(id="right"):
-                    status_box = _StatusBox(id="status")
-                    status_box.border_title = "状態"
-                    yield status_box
-
-                    org_box = _OrgBox(id="org")
-                    org_box.border_title = "組織図"
-                    yield org_box
+                    with VerticalScroll(id="org_scroll"):
+                        org_box = _OrgBox(id="org")
+                        org_box.border_title = "組織図（状態込み）"
+                        yield org_box
 
             events_box = _EventsBox(id="events")
             events_box.border_title = "イベントログ"
@@ -312,7 +298,9 @@ class UsagiTui(App):
         self._demo_thread = t
 
     def _refresh(self) -> None:
-        self.query_one(_StatusBox).update_text(self.root)
+        # mode button
+        self.query_one("#mode", Button).label = _mode_label(self.root)
+
         self.query_one(_OrgBox).update_text(
             self.org_path,
             self.root / ".usagi/status.json",
@@ -338,10 +326,8 @@ class UsagiTui(App):
             request_stop(self.root)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "start":
-            clear_stop(self.root)
-        if event.button.id == "stop":
-            request_stop(self.root)
+        if event.button.id == "mode":
+            self.action_toggle()
         if event.button.id == "secretary_send":
             self._send_secretary_message()
         if event.button.id == "secretary_to_input":

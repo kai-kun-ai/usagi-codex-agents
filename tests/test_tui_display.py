@@ -148,8 +148,8 @@ async def test_tui_secretary_chat_input(work_root: Path, org_path: Path) -> None
 
 
 @pytest.mark.asyncio()
-async def test_tui_stop_start_buttons(work_root: Path, org_path: Path) -> None:
-    """Stop/Start ボタンで .usagi/STOP が作成/削除される。"""
+async def test_tui_mode_toggle_button(work_root: Path, org_path: Path) -> None:
+    """modeボタンで .usagi/STOP がトグルされる。"""
     app = UsagiTui(
         root=work_root,
         org_path=org_path,
@@ -159,12 +159,12 @@ async def test_tui_stop_start_buttons(work_root: Path, org_path: Path) -> None:
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        # press Stop
-        await pilot.click("#stop")
+        # toggle to stop
+        await pilot.click("#mode")
         await pilot.pause()
         assert (work_root / ".usagi/STOP").exists()
 
-        # press Start
-        await pilot.click("#start")
+        # toggle back to running
+        await pilot.click("#mode")
         await pilot.pause()
         assert not (work_root / ".usagi/STOP").exists()
