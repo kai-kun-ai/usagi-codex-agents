@@ -30,6 +30,7 @@ from usagi.report import render_report
 from usagi.runtime import RuntimeMode
 from usagi.secretary import place_input_for_boss
 from usagi.spec import UsagiSpec
+from usagi.state import AgentStatus, load_status, save_status
 from usagi.vote import Vote, decide_2of3, parse_decision
 
 
@@ -53,6 +54,7 @@ def run_approval_pipeline(
     org: Organization,
     runtime: RuntimeMode,
     root: Path,
+    status_path: Path | None = None,
 ) -> ApprovalRunResult:
     backend: LLMBackend = OfflineBackend() if offline else CodexCLIBackend()
     started = datetime.now(tz=UTC).isoformat()
@@ -69,6 +71,13 @@ def run_approval_pipeline(
     msgs: list[AgentMessage] = []
     actions: list[str] = []
 
+    def _set(agent_id: str, name: str, state: str, task: str) -> None:
+        if status_path is None:
+            return
+        st = load_status(status_path)
+        st.set(AgentStatus(agent_id=agent_id, name=name, state=state, task=task))
+        save_status(status_path, st)
+
     # artifacts
     write_artifact(
         workdir,
@@ -77,6 +86,7 @@ def run_approval_pipeline(
     )
 
     # boss: plan (意思決定)
+    _set("boss", boss.name or boss.id, "working", f"plan: {spec.project or 'default'}")
     boss_agent = _agent_for(
         boss,
         role="planner",
@@ -89,9 +99,11 @@ def run_approval_pipeline(
     plan = boss_agent.run(user_prompt=_build_plan_prompt(spec), model=model, backend=backend)
     msgs.append(plan)
     write_artifact(workdir, "10-boss-plan.md", plan.content)
+    _set("boss", boss.name or boss.id, "idle", "")
 
     # worker: implement (差分)
     # use_worker_container が有効ならコンテナ内で実行
+    _set("worker", worker.name or worker.id, "working", f"impl: {spec.project or 'default'}")
     impl = _run_worker_step(
         worker=worker,
         lead=lead,
@@ -105,6 +117,7 @@ def run_approval_pipeline(
     )
     msgs.append(impl)
     write_artifact(workdir, "20-worker-impl.diff", impl.content)
+    _set("worker", worker.name or worker.id, "idle", "")
 
     # apply patch (従来通り workdir に apply)
     workdir.mkdir(parents=True, exist_ok=True)
@@ -113,6 +126,7 @@ def run_approval_pipeline(
     actions.append(f"write {patch_path.name}")
 
     # lead: review/approve
+    _set("lead", lead.name or lead.id, "working", f"review: {spec.project or 'default'}")
     lead_agent = _agent_for(
         lead,
         role="reviewer",
@@ -129,10 +143,12 @@ def run_approval_pipeline(
     lead_review = lead_agent.run(user_prompt=review_prompt, model=model, backend=backend)
     msgs.append(lead_review)
     write_artifact(workdir, "30-lead-review.md", lead_review.content)
+    _set("lead", lead.name or lead.id, "idle", "")
 
     approved_by_lead = "APPROVE" in lead_review.content.upper()
 
     # manager: merge decision (課ブランチをmainへ)
+    _set("manager", manager.name or manager.id, "working", f"decision: {spec.project or 'default'}")
     manager_agent = _agent_for(
         manager,
         role="planner",
@@ -152,6 +168,7 @@ def run_approval_pipeline(
     manager_decision = manager_agent.run(user_prompt=manager_prompt, model=model, backend=backend)
     msgs.append(manager_decision)
     write_artifact(workdir, "40-manager-decision.md", manager_decision.content)
+    _set("manager", manager.name or manager.id, "idle", "")
 
     decision_text = manager_decision.content.upper()
 

@@ -247,6 +247,7 @@ class WatchWorker:
                 org=load_org(org_file),
                 runtime=runtime,
                 root=Path("."),
+                status_path=self.status_path,
             )
             self._write_report(p, res.report)
             self._event("pipeline done")
