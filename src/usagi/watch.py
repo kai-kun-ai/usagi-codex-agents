@@ -22,6 +22,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from usagi.announce import announce
+from usagi.agent_chain import boss_handle_spec, lead_tick, manager_tick, worker_tick
 from usagi.approval_pipeline import run_approval_pipeline
 from usagi.org import load_org
 from usagi.runtime import load_runtime
@@ -251,22 +252,21 @@ class WatchWorker:
                 f"project={project} job_id={job_id} offline={True if self.dry_run else self.offline} "
                 f"use_worker_container={runtime.use_worker_container}"
             )
-            res = run_approval_pipeline(
-                spec=spec,
-                workdir=workdir,
-                model=self.model,
-                offline=True if self.dry_run else self.offline,
+            # Boss step only: plan + delegate via mailbox.
+            boss_handle_spec(
+                root=self.outputs_dir.parent,
+                outputs_dir=self.outputs_dir,
+                status_path=self.status_path,
                 org=load_org(org_file),
                 runtime=runtime,
-                root=self.outputs_dir.parent,
-                status_path=self.status_path,
-                repo_root=project_dir,
-                outputs_dir=self.outputs_dir,
+                spec=spec,
+                model=self.model,
+                offline=True if self.dry_run else self.offline,
+                workdir=workdir,
                 input_rel=str(p.relative_to(self.inputs_dir)) if self.inputs_dir in p.parents else p.name,
                 job_id=job_id,
             )
-            self._write_report(p, res.report, spec=spec, job_id=job_id, messages=res.messages)
-            self._event("pipeline done")
+            self._event("boss delegated")
         except Exception as e:  # noqa: BLE001
             import traceback
 
@@ -438,10 +438,40 @@ def watch_inputs(
     obs.schedule(_Handler(enq), str(inputs_dir), recursive=recursive)
     obs.start()
 
+    # mailbox chain: repo root is the same root as inputs/outputs
+    root = outputs_dir.parent
+
     try:
         while True:
             if stop_file is not None and stop_file.exists():
                 break
+
+            # mailbox chain ticks (best-effort)
+            try:
+                org = load_org(org_path or Path("examples/org.toml"))
+                runtime = load_runtime(runtime_path or Path("usagi.runtime.toml"))
+                manager_tick(
+                    root=root,
+                    outputs_dir=outputs_dir,
+                    status_path=status_path,
+                    org=org,
+                    runtime=runtime,
+                    model=model,
+                    offline=offline,
+                )
+                lead_tick(root=root, status_path=status_path, org=org, runtime=runtime)
+                worker_tick(
+                    root=root,
+                    status_path=status_path,
+                    org=org,
+                    runtime=runtime,
+                    model=model,
+                    offline=offline,
+                    repo_root=work_root,
+                )
+            except Exception:
+                pass
+
             time.sleep(0.5)
     except KeyboardInterrupt:
         for w in workers:

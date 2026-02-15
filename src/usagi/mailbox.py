@@ -63,6 +63,7 @@ def deliver_markdown(
     to_agent: str,
     title: str,
     body: str,
+    kind: str = "message",
 ) -> Path:
     """Deliver a Markdown message to recipient inbox.
 
@@ -83,6 +84,7 @@ def deliver_markdown(
 
     content = (
         "---\n"
+        f"kind: {kind}\n"
         f"from: {from_agent}\n"
         f"to: {to_agent}\n"
         f"title: {title}\n"
@@ -93,7 +95,7 @@ def deliver_markdown(
     )
     p.write_text(content, encoding="utf-8")
 
-    _event(root, f"mailbox: delivered {from_agent} -> {to_agent}: {p.name}")
+    _event(root, f"mailbox: delivered kind={kind} {from_agent} -> {to_agent}: {p.name}")
     return p
 
 
