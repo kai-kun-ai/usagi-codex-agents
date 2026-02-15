@@ -131,7 +131,8 @@ def run_approval_pipeline(
         system_prompt=(
             "あなたは部長(manager)です。\n"
             "課長のレビュー結果を踏まえ、課ブランチを main にマージしてよいか判断してください。\n"
-            "判断は 'MERGE_OK' / 'NEED_MORE_REVIEW' / 'ESCALATE_TO_BOSS' のいずれかを必ず含めてください。"
+            "判断は 'MERGE_OK' / 'NEED_MORE_REVIEW' / 'ESCALATE_TO_BOSS' "
+            "のいずれかを必ず含めてください。"
         ),
     )
     manager_prompt = (
