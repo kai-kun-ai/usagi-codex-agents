@@ -79,11 +79,19 @@ def run_approval_pipeline(
     actions: list[str] = []
 
     def _set(agent_id: str, name: str, state: str, task: str) -> None:
-        if status_path is None:
-            return
-        st = load_status(status_path)
-        st.set(AgentStatus(agent_id=agent_id, name=name, state=state, task=task))
-        save_status(status_path, st)
+        if status_path is not None:
+            st = load_status(status_path)
+            st.set(AgentStatus(agent_id=agent_id, name=name, state=state, task=task))
+            save_status(status_path, st)
+        # also record to events
+        try:
+            ev = root / ".usagi" / "events.log"
+            ev.parent.mkdir(parents=True, exist_ok=True)
+            ts = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+            with ev.open("a", encoding="utf-8") as f:
+                f.write(f"[{ts}] agent: {agent_id} state={state} task={task}\n")
+        except Exception:
+            pass
 
     # artifacts
     write_artifact(
@@ -309,6 +317,8 @@ def run_approval_pipeline(
                     enabled=runtime.compress.enabled,
                 )
             ),
+            status_path=status_path,
+            root=root,
         )
         # ログに残す
         for v in votes:
@@ -555,6 +565,8 @@ def _run_3persona_vote(
     org: Organization,
     runtime: RuntimeMode,
     context: str,
+    status_path: Path | None = None,
+    root: Path | None = None,
 ) -> list[Vote]:
     votes: list[Vote] = []
     voter_ids = list(runtime.vote.voters)
@@ -565,6 +577,22 @@ def _run_3persona_vote(
     for vid in voter_ids[:3]:
         a = org.find(vid)
         name = a.name if a else vid
+
+        # status + events
+        if status_path is not None:
+            st = load_status(status_path)
+            st.set(AgentStatus(agent_id=vid, name=name, state="working", task="vote"))
+            save_status(status_path, st)
+        if root is not None:
+            try:
+                ev = root / ".usagi" / "events.log"
+                ev.parent.mkdir(parents=True, exist_ok=True)
+                ts = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+                with ev.open("a", encoding="utf-8") as f:
+                    f.write(f"[{ts}] agent: {vid} state=working task=vote\n")
+            except Exception:
+                pass
+
         agent = UsagiAgent(
             name=name,
             role="vote",
@@ -577,6 +605,20 @@ def _run_3persona_vote(
         resp = agent.run(user_prompt=context, model=model, backend=backend)
         decision = parse_decision(resp.content)
         votes.append(Vote(voter_id=vid, decision=decision, reason=resp.content.strip()))
+
+        if status_path is not None:
+            st = load_status(status_path)
+            st.set(AgentStatus(agent_id=vid, name=name, state="idle", task=""))
+            save_status(status_path, st)
+        if root is not None:
+            try:
+                ev = root / ".usagi" / "events.log"
+                ts = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+                with ev.open("a", encoding="utf-8") as f:
+                    f.write(f"[{ts}] agent: {vid} state=idle task=\n")
+            except Exception:
+                pass
+
     return votes
 
 

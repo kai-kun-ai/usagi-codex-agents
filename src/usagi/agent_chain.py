@@ -12,6 +12,7 @@ All handoffs are Markdown files via mailbox.
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 
 from usagi.agents import AgentMessage, CodexCLIBackend, OfflineBackend, UsagiAgent
@@ -28,12 +29,24 @@ from usagi.state import AgentStatus, load_status, save_status
 log = logging.getLogger(__name__)
 
 
-def _set(status_path: Path | None, agent_id: str, name: str, state: str, task: str) -> None:
-    if status_path is None:
+def _event(root: Path, msg: str) -> None:
+    try:
+        p = root / ".usagi" / "events.log"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        with p.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
         return
-    st = load_status(status_path)
-    st.set(AgentStatus(agent_id=agent_id, name=name, state=state, task=task))
-    save_status(status_path, st)
+
+
+def _set(root: Path, status_path: Path | None, agent_id: str, name: str, state: str, task: str) -> None:
+    if status_path is not None:
+        st = load_status(status_path)
+        st.set(AgentStatus(agent_id=agent_id, name=name, state=state, task=task))
+        save_status(status_path, st)
+    # also log agent activity to events
+    _event(root, f"agent: {agent_id} state={state} task={task}")
 
 
 def boss_handle_spec(
@@ -59,7 +72,7 @@ def boss_handle_spec(
     if boss is None or assignment_manager is None:
         raise RuntimeError("boss/manager not found")
 
-    _set(status_path, boss.id, boss.name or boss.id, "working", f"plan: {spec.project}")
+    _set(root, status_path, boss.id, boss.name or boss.id, "working", f"plan: {spec.project}")
     boss_agent = UsagiAgent(
         name=boss.name or boss.id,
         role="planner",
@@ -82,7 +95,7 @@ def boss_handle_spec(
         body=compact_for_prompt(plan_msg.content, stage="boss_plan_to_manager", max_chars=runtime.compress.max_chars_default, enabled=runtime.compress.enabled),
     )
 
-    _set(status_path, boss.id, boss.name or boss.id, "idle", "")
+    _set(root, status_path, boss.id, boss.name or boss.id, "idle", "")
 
 
 def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org: Organization, runtime: RuntimeMode, model: str, offline: bool) -> None:
@@ -95,12 +108,12 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
             archive_message(root=root, agent_id=mgr.id, message_path=p)
             continue
 
-        _set(status_path, mgr.id, mgr.name or mgr.id, "working", "delegate")
+        _set(root, status_path, mgr.id, mgr.name or mgr.id, "working", "delegate")
 
         lead = org.find("dev_impl_lead")
         if lead is None:
             archive_message(root=root, agent_id=mgr.id, message_path=p)
-            _set(status_path, mgr.id, mgr.name or mgr.id, "idle", "")
+            _set(root, status_path, mgr.id, mgr.name or mgr.id, "idle", "")
             return
 
         deliver_markdown(
@@ -123,7 +136,7 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
         )
 
         archive_message(root=root, agent_id=mgr.id, message_path=p)
-        _set(status_path, mgr.id, mgr.name or mgr.id, "idle", "")
+        _set(root, status_path, mgr.id, mgr.name or mgr.id, "idle", "")
 
 
 def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtime: RuntimeMode) -> None:
@@ -136,11 +149,11 @@ def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtim
             archive_message(root=root, agent_id=lead.id, message_path=p)
             continue
 
-        _set(status_path, lead.id, lead.name or lead.id, "working", "assign worker")
+        _set(root, status_path, lead.id, lead.name or lead.id, "working", "assign worker")
         worker = org.find("dev_w1") or org.find("dev_w2")
         if worker is None:
             archive_message(root=root, agent_id=lead.id, message_path=p)
-            _set(status_path, lead.id, lead.name or lead.id, "idle", "")
+            _set(root, status_path, lead.id, lead.name or lead.id, "idle", "")
             return
 
         deliver_markdown(
@@ -153,7 +166,7 @@ def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtim
         )
 
         archive_message(root=root, agent_id=lead.id, message_path=p)
-        _set(status_path, lead.id, lead.name or lead.id, "idle", "")
+        _set(root, status_path, lead.id, lead.name or lead.id, "idle", "")
 
 
 def worker_tick(*, root: Path, status_path: Path | None, org: Organization, runtime: RuntimeMode, model: str, offline: bool, repo_root: Path) -> None:
@@ -172,7 +185,7 @@ def worker_tick(*, root: Path, status_path: Path | None, org: Organization, runt
             archive_message(root=root, agent_id=worker.id, message_path=p)
             continue
 
-        _set(status_path, worker.id, worker.name or worker.id, "working", "implement")
+        _set(root, status_path, worker.id, worker.name or worker.id, "working", "implement")
 
         # Minimal fake spec
         spec = UsagiSpec(project="usagi-project", objective=msg.title, tasks=[], constraints=[], context="")
@@ -202,4 +215,4 @@ def worker_tick(*, root: Path, status_path: Path | None, org: Organization, runt
         )
 
         archive_message(root=root, agent_id=worker.id, message_path=p)
-        _set(status_path, worker.id, worker.name or worker.id, "idle", "")
+        _set(root, status_path, worker.id, worker.name or worker.id, "idle", "")
