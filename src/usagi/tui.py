@@ -336,6 +336,7 @@ class UsagiTui(App):
     #main { height: 1fr; }
     #top { height: 1fr; }
     #left, #right { width: 1fr; height: 1fr; }
+    #left_scroll { height: 1fr; }
 
     /* NOTE: events は下部に固定高で確保する（入力欄が縦に伸びても重ならないように） */
     #events { height: 12; border: solid green; padding: 0 1; }
@@ -409,29 +410,31 @@ class UsagiTui(App):
                         mode_btn.border_title = "mode"
                         yield mode_btn
 
-                        with VerticalScroll(id="secretary_scroll"):
-                            chat = _SecretaryChatBox(id="secretary_chat")
-                            chat.border_title = "秘書(🐻)との対話"
-                            yield chat
+                        # NOTE: 左ペインの中身はスクロールさせ、下部events領域と重ならないようにする
+                        with VerticalScroll(id="left_scroll"):
+                            with VerticalScroll(id="secretary_scroll"):
+                                chat = _SecretaryChatBox(id="secretary_chat")
+                                chat.border_title = "秘書(🐻)との対話"
+                                yield chat
 
-                        with Container(id="secretary_controls"):
-                            yield Input(
-                                placeholder=(
-                                    "ここに日本語で入力 → Enter で送信"
-                                    "（例: 次のタスクを整理して）"
-                                ),
-                                id="secretary_input",
+                            with Container(id="secretary_controls"):
+                                yield Input(
+                                    placeholder=(
+                                        "ここに日本語で入力 → Enter で送信"
+                                        "（例: 次のタスクを整理して）"
+                                    ),
+                                    id="secretary_input",
+                                )
+                                # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
+                                yield Static("Ctrl+B: 社長に渡す", id="secretary_to_hint")
+
+                            inputs_box = _InputsBox(
+                                inputs_dir=self.root / "inputs",
+                                state_path=self.root / ".usagi/state.json",
+                                id="inputs",
                             )
-                            # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
-                            yield Static("Ctrl+B: 社長に渡す", id="secretary_to_hint")
-
-                        inputs_box = _InputsBox(
-                            inputs_dir=self.root / "inputs",
-                            state_path=self.root / ".usagi/state.json",
-                            id="inputs",
-                        )
-                        inputs_box.border_title = "入力"
-                        yield inputs_box
+                            inputs_box.border_title = "入力"
+                            yield inputs_box
 
                     with Container(id="right"):
                         with VerticalScroll(id="org_scroll"):
