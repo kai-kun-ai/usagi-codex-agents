@@ -1,0 +1,22 @@
+# ワーカーコンテナ用 Dockerfile
+# profiles.toml の docker_image で参照される基礎イメージ
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# codex CLI (placeholder — 実運用では npm install -g @openai/codex)
+# RUN npm install -g @openai/codex
+
+WORKDIR /work
+
+# usagi パッケージ（ワーカーが状態更新するため最小限入れる）
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY . /app
+RUN pip install --no-cache-dir -e /app
+
+ENTRYPOINT ["codex"]
