@@ -73,5 +73,12 @@ run: d-build
 	  -w /app \
 	  $(IMAGE) usagi tui --root /work $$OFFLINE_FLAG $$DEMO_FLAG
 
-demo:
-	$(MAKE) run DEMO=1
+# 完全なデモ（ホストのWORKDIR/PROFILE不要）
+# - /work は匿名volume（ホストに永続化しない）
+# - セッションマウントもしない
+# - API/CLIは叩かない
+
+demo: d-build
+	docker run --rm -it \
+	  -v /work \
+	  $(IMAGE) usagi tui --root /work --demo

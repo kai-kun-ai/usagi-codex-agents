@@ -68,7 +68,7 @@ make run WORKDIR=$PWD PROFILE=alice OFFLINE=1
 ※ 画面だけ見たい場合はデモモード:
 
 ```bash
-make demo WORKDIR=$PWD PROFILE=alice
+make demo
 ```
 
 - `s` キーで Start/Stop（STOPファイルの切替）
