@@ -12,6 +12,8 @@
 ```bash
 make test      # ローカル
 make d-test    # Docker
+make run WORKDIR=$PWD PROFILE=alice OFFLINE=1  # Dockerで統合CUI起動
+make demo WORKDIR=$PWD PROFILE=alice           # Dockerでデモ起動
 ```
 
 ## Codex / Claude login（複数セッション）
@@ -32,13 +34,7 @@ mkdir -p .usagi/sessions/codex/alice .usagi/sessions/claude/alice
 ### 2) プロファイルを volume mount してコンテナに入る
 
 ```bash
-docker build -t usagi-dev .
-
-docker run --rm -it \
-  -v "$PWD":/app \
-  -v "$PWD/.usagi/sessions/codex/alice":/root/.codex \
-  -v "$PWD/.usagi/sessions/claude/alice":/root/.claude \
-  usagi-dev bash
+make d-shell WORKDIR=$PWD PROFILE=alice
 ```
 
 ### 3) コンテナ内で公式CLIを使ってサブスクログイン（トークン取り込み）

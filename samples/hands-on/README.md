@@ -15,7 +15,7 @@ cd usagi-codex-agents
 ## 1. Dockerイメージを作る
 
 ```bash
-docker build -t usagi-dev .
+make d-build
 ```
 
 ## 2. ログインプロファイルを作る（Codex / Claude）
@@ -28,12 +28,10 @@ mkdir -p .usagi/sessions/codex/alice .usagi/sessions/claude/alice
 
 ## 3. プロファイルをマウントしてコンテナに入る
 
+以降は `WORKDIR` を絶対パスで指定します（例: リポジトリ直下）。
+
 ```bash
-docker run --rm -it \
-  -v "$PWD":/app \
-  -v "$PWD/.usagi/sessions/codex/alice":/root/.codex \
-  -v "$PWD/.usagi/sessions/claude/alice":/root/.claude \
-  usagi-dev bash
+make d-shell WORKDIR=$PWD PROFILE=alice
 ```
 
 ## 4. コンテナ内でサブスクログイン（トークン取り込み）
@@ -61,10 +59,16 @@ claude
 
 ### 5.1 統合CUI（おすすめ）
 
-同じコンテナ内で:
+ホスト側で（コンテナを別途起動する必要なし）:
 
 ```bash
-usagi tui --offline
+make run WORKDIR=$PWD PROFILE=alice OFFLINE=1
+```
+
+※ 画面だけ見たい場合はデモモード:
+
+```bash
+make demo WORKDIR=$PWD PROFILE=alice
 ```
 
 - `s` キーで Start/Stop（STOPファイルの切替）
@@ -90,15 +94,17 @@ cat outputs/hello.report.md
 
 ### 5.3 オンライン（API/CLI）で動かす
 
-`--offline` を外して実行してください。
+OFFLINEを外して実行してください。
 
 ```bash
-usagi tui
+make run WORKDIR=$PWD PROFILE=alice
 ```
 
-またはコマンド単体:
+またはコマンド単体（コンテナ内で実行したい場合）:
 
 ```bash
+make d-shell WORKDIR=$PWD PROFILE=alice
+# コンテナ内で
 usagi autopilot-start
 ```
 

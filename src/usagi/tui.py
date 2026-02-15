@@ -217,6 +217,7 @@ class UsagiTui(App):
 
 
 def run_tui(*, root: Path, model: str, offline: bool, demo: bool) -> None:
+    root = root.resolve()
     # events.logが読めるように最低限作っておく
     (root / ".usagi").mkdir(parents=True, exist_ok=True)
     # Textual起動
