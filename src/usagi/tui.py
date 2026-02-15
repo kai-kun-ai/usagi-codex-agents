@@ -459,9 +459,10 @@ class UsagiTui(App):
                             org_box.border_title = "組織図（状態込み）"
                             yield org_box
 
-            events_box = _EventsBox(id="events")
-            events_box.border_title = "イベントログ"
-            yield events_box
+            with VerticalScroll(id="events_scroll"):
+                events_box = _EventsBox(id="events")
+                events_box.border_title = "イベントログ"
+                yield events_box
 
             yield Static("Focus: (initializing)", id="focus_bar")
         yield Footer()
@@ -555,6 +556,11 @@ class UsagiTui(App):
         self.query_one(_SecretaryChatBox).update_text(self.root)
         self.query_one(_InputsBox).refresh_items()
         self.query_one(_EventsBox).update_text(self.root / ".usagi/events.log")
+        # auto-scroll events
+        try:
+            self.query_one("#events_scroll", VerticalScroll).scroll_end(animate=False)
+        except Exception:
+            pass
 
         # secretary autoscroll
         try:
@@ -641,11 +647,38 @@ class UsagiTui(App):
 
         # LLM経由で秘書に返答させる（別スレッドでブロッキング回避）
         def _reply() -> None:
+            # secretary is also an agent: update status + event log
+            try:
+                from usagi.state import AgentStatus, load_status, save_status
+
+                st = load_status(self.root / ".usagi/status.json")
+                st.set(AgentStatus(agent_id="secretary", name="秘書クマ", state="working", task="reply"))
+                save_status(self.root / ".usagi/status.json", st)
+                ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                with (self.root / ".usagi/events.log").open("a", encoding="utf-8") as f:
+                    f.write(f"[{ts}] agent: secretary state=working task=reply\n")
+            except Exception:
+                pass
+
             try:
                 reply = self._secretary.reply(text)
             except Exception:
                 reply = "すみません、うまく応答できませんでした。もう一度お願いします。"
+
             append_secretary_log(self.root, who="🐻 secretary", text=reply)
+
+            try:
+                from usagi.state import AgentStatus, load_status, save_status
+
+                st = load_status(self.root / ".usagi/status.json")
+                st.set(AgentStatus(agent_id="secretary", name="秘書クマ", state="idle", task=""))
+                save_status(self.root / ".usagi/status.json", st)
+                ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                with (self.root / ".usagi/events.log").open("a", encoding="utf-8") as f:
+                    f.write(f"[{ts}] agent: secretary state=idle task=\n")
+            except Exception:
+                pass
+
             self.call_from_thread(self._refresh)
 
         threading.Thread(target=_reply, daemon=True).start()
@@ -664,6 +697,18 @@ class UsagiTui(App):
 
         # AI で要約してから submit（別スレッドでブロッキング回避）
         def _summarize_and_submit() -> None:
+            try:
+                from usagi.state import AgentStatus, load_status, save_status
+
+                st = load_status(self.root / ".usagi/status.json")
+                st.set(AgentStatus(agent_id="secretary", name="秘書クマ", state="working", task="summarize"))
+                save_status(self.root / ".usagi/status.json", st)
+                ts0 = time.strftime("%Y-%m-%d %H:%M:%S")
+                with (self.root / ".usagi/events.log").open("a", encoding="utf-8") as f:
+                    f.write(f"[{ts0}] agent: secretary state=working task=summarize\n")
+            except Exception:
+                pass
+
             summary = self._secretary.summarize_for_boss(dialog)
 
             project = infer_project(dialog)
@@ -698,6 +743,17 @@ class UsagiTui(App):
             with events.open("a", encoding="utf-8") as f:
                 f.write(f"[{ts}] secretary: placed input {p.relative_to(self.root)}\n")
                 f.write(f"[{ts}] secretary: archived+cleared chat\n")
+
+            try:
+                from usagi.state import AgentStatus, load_status, save_status
+
+                st = load_status(self.root / ".usagi/status.json")
+                st.set(AgentStatus(agent_id="secretary", name="秘書クマ", state="idle", task=""))
+                save_status(self.root / ".usagi/status.json", st)
+                with events.open("a", encoding="utf-8") as f:
+                    f.write(f"[{ts}] agent: secretary state=idle task=\n")
+            except Exception:
+                pass
 
             self.call_from_thread(self._refresh)
 
