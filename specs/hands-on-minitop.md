@@ -1,19 +1,19 @@
-# usagi spec
+---
+project: hands-on-minitop
+---
 
-title: minitop - /procベースの軽量topもどきCLIをゼロから作る
-
-## objective
+## 目的
 
 Linux上で動く「topもどき」のミニCLIツールをゼロから作る。
 リフレッシュUIは不要で、一定間隔でループ出力する方式にする。
 
-## context
+補足:
 
-- このリポジトリ（usagi-codex-agents）を使った **Codexログイン後の実運用テスト用**。
-- 依存を増やしすぎない（psutil無し、/proc を読む）。
-- まずは正確性より「動く・テストがある・READMEがある」ことを重視。
+- このリポジトリ（usagi-codex-agents）を使った **Codexログイン後の実運用テスト用**
+- 依存を増やしすぎない（psutil無し、/proc を読む）
+- まずは正確性より「動く・テストがある・READMEがある」ことを重視
 
-## tasks
+## やること
 
 - 新しいPythonパッケージ `minitop` を作成する
   - エントリポイント: `minitop` コマンド
@@ -35,7 +35,7 @@ Linux上で動く「topもどき」のミニCLIツールをゼロから作る。
   - CLI引数の最低限のテスト
 - ruff に通す
 
-## constraints
+## 制約
 
 - Pythonで実装
 - 既存ツールの構造に合わせる（ruff/pytest）

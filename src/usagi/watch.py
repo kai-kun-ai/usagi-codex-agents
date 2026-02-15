@@ -301,6 +301,12 @@ def watch_inputs(
     enq = DebouncedEnqueuer(q, debounce_seconds=debounce_seconds, event_log_path=event_log_path)
 
     runtime = load_runtime(runtime_path)
+
+    # 起動時にAPI疎通などを試す（失敗してもwatch自体は継続）
+    from usagi.startup_check import run_startup_check
+
+    run_startup_check(runtime=runtime, model=model, offline=offline, event_log_path=event_log_path)
+
     pool_size = int(worker_pool_size or runtime.worker_pool_size or 5)
     pool_size = max(1, min(pool_size, 20))
 

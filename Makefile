@@ -47,6 +47,8 @@ d-shell: d-build
 	  -e USAGI_DISCORD_TOKEN \
 	  -e USAGI_DISCORD_CHANNEL_ID \
 	  -e USAGI_DISCORD_WEBHOOK_URL \
+	  -e OPENAI_API_KEY \
+	  -e ANTHROPIC_API_KEY \
 	  -v "$(WORKDIR)":/work \
 	  -v "$$PWD":/app \
 	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \
@@ -78,6 +80,8 @@ run: d-build
 	  -e USAGI_DISCORD_TOKEN \
 	  -e USAGI_DISCORD_CHANNEL_ID \
 	  -e USAGI_DISCORD_WEBHOOK_URL \
+	  -e OPENAI_API_KEY \
+	  -e ANTHROPIC_API_KEY \
 	  -v "$(WORKDIR)":/work \
 	  -v "$$PWD":/app \
 	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \

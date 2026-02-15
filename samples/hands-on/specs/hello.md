@@ -1,17 +1,18 @@
-# usagi spec
+---
+project: hands-on-hello
+---
 
-title: ハンズオン: hello
-description: "最小の動作確認（offlineでも動く）"
+## 目的
 
-## request
+最小の動作確認（offlineでも動く）。
 
-次の要件を満たす Markdown レポートを出してください。
+## やること
 
-- 何を実行したかを箇条書き
-- inputs/ と outputs/ の関係
-- STOPファイルで止まること
+- レポートに「何を実行したか」を箇条書きで書く
+- `inputs/` と `outputs/` の関係を説明する
+- STOPファイルで止まることを説明する
 
-## agents
+## 制約
 
-- boss: 社長うさぎ
-- worker: 新人うさぎ
+- 日本語
+- できるだけ短く
