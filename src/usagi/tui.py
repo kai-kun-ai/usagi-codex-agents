@@ -335,8 +335,11 @@ class _OrgBox(Static):
 class UsagiTui(App):
     CSS = """
     #main { height: 1fr; }
-    #left, #right { width: 1fr; }
-    #events { height: 1fr; border: solid green; padding: 0 1; }
+    #top { height: 1fr; }
+    #left, #right { width: 1fr; height: 1fr; }
+
+    /* NOTE: events は下部に固定高で確保する（入力欄が縦に伸びても重ならないように） */
+    #events { height: 12; border: solid green; padding: 0 1; }
     #focus_status { height: 3; border: solid cyan; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
@@ -360,6 +363,7 @@ class UsagiTui(App):
         background: $surface;
         height: 3;
         width: 1fr;
+        max-height: 10;
     }
 
     #secretary_to_input {
@@ -403,41 +407,44 @@ class UsagiTui(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Container(id="main"):
-            with Horizontal():
-                with Container(id="left"):
-                    mode_btn = Button("", id="mode")
-                    mode_btn.border_title = "mode"
-                    yield mode_btn
+            with Container(id="top"):
+                with Horizontal():
+                    with Container(id="left"):
+                        mode_btn = Button("", id="mode")
+                        mode_btn.border_title = "mode"
+                        yield mode_btn
 
-                    with VerticalScroll(id="secretary_scroll"):
-                        chat = _SecretaryChatBox(id="secretary_chat")
-                        chat.border_title = "秘書(🐻)との対話"
-                        yield chat
+                        with VerticalScroll(id="secretary_scroll"):
+                            chat = _SecretaryChatBox(id="secretary_chat")
+                            chat.border_title = "秘書(🐻)との対話"
+                            yield chat
 
-                    with Container(id="secretary_controls"):
-                        yield Input(
-                            placeholder=(
-                                "ここに日本語で入力 → Enter で送信"
-                                "（例: 次のタスクを整理して）"
-                            ),
-                            id="secretary_input",
+                        # NOTE: 狭い端末でボタンが押し出されないよう縦積みにする
+                        with Container(id="secretary_controls"):
+                            yield Input(
+                                placeholder=(
+                                    "ここに日本語で入力 → Enter で送信"
+                                    "（例: 次のタスクを整理して）"
+                                ),
+                                id="secretary_input",
+                            )
+                            with Horizontal(id="secretary_controls_buttons"):
+                                yield Button("社長に渡す", id="secretary_to_input")
+                                yield Static("Ctrl+B", id="secretary_to_hint")
+
+                        inputs_box = _InputsBox(
+                            inputs_dir=self.root / "inputs",
+                            state_path=self.root / ".usagi/state.json",
+                            id="inputs",
                         )
-                        with Horizontal(id="secretary_controls_buttons"):
-                            yield Button("社長に渡す", id="secretary_to_input")
-                            yield Static("Ctrl+B", id="secretary_to_hint")
+                        inputs_box.border_title = "入力"
+                        yield inputs_box
 
-                    inputs_box = _InputsBox(
-                        inputs_dir=self.root / "inputs",
-                        state_path=self.root / ".usagi/state.json",
-                        id="inputs",
-                    )
-                    inputs_box.border_title = "入力"
-                    yield inputs_box
-                with Container(id="right"):
-                    with VerticalScroll(id="org_scroll"):
-                        org_box = _OrgBox(id="org")
-                        org_box.border_title = "組織図（状態込み）"
-                        yield org_box
+                    with Container(id="right"):
+                        with VerticalScroll(id="org_scroll"):
+                            org_box = _OrgBox(id="org")
+                            org_box.border_title = "組織図（状態込み）"
+                            yield org_box
 
             events_box = _EventsBox(id="events")
             events_box.border_title = "イベントログ"
