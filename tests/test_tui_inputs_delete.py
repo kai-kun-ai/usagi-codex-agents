@@ -36,7 +36,7 @@ reports_to = ""
     async with app.run_test() as pilot:
         await pilot.pause()
         # inputs listにフォーカスしてから d で削除
-        await pilot.click("#inputs")
+        app.query_one("#inputs").focus()
         await pilot.pause()
         await pilot.press("d")
         await pilot.pause(0.6)
