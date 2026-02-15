@@ -368,7 +368,7 @@ class UsagiTui(App):
         background: $surface;
         height: 3;
         width: 1fr;
-        max-height: 10;
+        max-height: 6;
     }
 
     /* secretary_to_input button removed: Ctrl+B shortcut only */
