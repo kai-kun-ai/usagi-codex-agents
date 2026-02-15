@@ -25,7 +25,13 @@ from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.demo import DemoConfig, run_demo_forever
 from usagi.display import display_name
 from usagi.org import load_org
-from usagi.secretary import append_secretary_log, place_input_for_boss, secretary_log_path
+from usagi.secretary import (
+    SecretaryAgent,
+    SecretaryConfig,
+    append_secretary_log,
+    place_input_for_boss,
+    secretary_log_path,
+)
 from usagi.state import load_status
 from usagi.watch import watch_inputs
 
@@ -404,6 +410,9 @@ class UsagiTui(App):
 
         self._watch_thread: threading.Thread | None = None
         self._demo_thread: threading.Thread | None = None
+        self._secretary = SecretaryAgent(
+            config=SecretaryConfig(root=root, offline=offline or demo),
+        )
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -626,16 +635,18 @@ class UsagiTui(App):
             return
 
         append_secretary_log(self.root, who="you", text=text)
-
-        # 簡易: 秘書からの返事は固定文（後続PRでLLM整形に差し替え）
-        append_secretary_log(
-            self.root,
-            who="🐻 secretary",
-            text="了解。社長に渡す内容として整理するね。",
-        )
-
         inp.value = ""
-        self._refresh()
+
+        # LLM経由で秘書に返答させる（別スレッドでブロッキング回避）
+        def _reply() -> None:
+            try:
+                reply = self._secretary.reply(text)
+            except Exception:
+                reply = "すみません、うまく応答できませんでした。もう一度お願いします。"
+            append_secretary_log(self.root, who="🐻 secretary", text=reply)
+            self.call_from_thread(self._refresh)
+
+        threading.Thread(target=_reply, daemon=True).start()
 
     def _secretary_to_input(self) -> None:
         # secretary.log の末尾を input.md 化して inputs/ に配置
