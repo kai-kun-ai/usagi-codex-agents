@@ -27,7 +27,10 @@ RUN set -eux; \
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
     > /etc/apt/sources.list.d/docker.list; \
   apt-get update; \
+  # CLI only (no daemon). If engine packages get pulled in by accident, purge them.
   apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin; \
+  apt-get purge -y docker-ce docker-ce-rootless-extras docker-buildx-plugin docker-ce-cli-plugin || true; \
+  apt-get autoremove -y --purge; \
   rm -rf /var/lib/apt/lists/*
 
 # Codex CLI (official)
