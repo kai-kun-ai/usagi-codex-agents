@@ -343,10 +343,23 @@ def _run_worker_in_container(
             r.returncode, len(r.stdout or ""), len(r.stderr or ""),
         )
 
+        # Failure diagnostics:
+        # - Do NOT include full stderr/stdout in the user-facing report by default (may contain secrets).
+        # - Instead, write a small tail to logs so operators can debug.
+        if r.returncode != 0:
+            stderr = r.stderr or ""
+            tail_lines = 50
+            tail = "\n".join(stderr.splitlines()[-tail_lines:]) if stderr else ""
+            if tail:
+                log.error("worker container stderr tail (last %d lines):\n%s", tail_lines, tail)
+            else:
+                log.error("worker container stderr: (empty)")
+
         content = r.stdout or ""
         if r.returncode != 0:
             content = (
-                f"(worker container failed with code {r.returncode})\n\n"
+                f"(worker container failed with code {r.returncode})\n"
+                "See `.usagi/logs/usagi.log` for docker stderr tail.\n\n"
                 + content
             )
 
