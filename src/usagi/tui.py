@@ -95,6 +95,51 @@ def _mode_label(root: Path) -> str:
     return "STOPPED" if stop_requested(root) else "RUNNING"
 
 
+def _focused_window_label(focused: object | None) -> str:
+    """Return a human-friendly label for current focus.
+
+    Textual's focus may be on a child widget (e.g. Static inside a ListItem).
+    For usability we map those back to the enclosing "window" areas.
+    """
+
+    if focused is None:
+        return "(none)"
+
+    focused_id = getattr(focused, "id", None)
+    if focused_id == "mode":
+        return "mode"
+    if focused_id == "secretary_input":
+        return "秘書入力"
+    if focused_id == "secretary_to_input":
+        return "社長に渡す"
+    if focused_id == "inputs":
+        return "入力"
+
+    # Children can have focus; try to resolve by ancestor.
+    try:
+        if getattr(focused, "has_ancestor")("#inputs"):
+            return "入力"
+    except Exception:
+        pass
+
+    try:
+        if getattr(focused, "has_ancestor")("#secretary_scroll"):
+            return "秘書ログ"
+    except Exception:
+        pass
+
+    try:
+        if getattr(focused, "has_ancestor")("#org_scroll"):
+            return "組織図"
+    except Exception:
+        pass
+
+    # Fall back to id or class name.
+    if focused_id:
+        return str(focused_id)
+    return focused.__class__.__name__
+
+
 # NOTE: 状態表示は組織図に統合したため、専用ウィンドウは廃止。
 class _EventsBox(Static):
     def update_text(self, log_path: Path, max_lines: int = 15) -> None:
@@ -292,6 +337,7 @@ class UsagiTui(App):
     #main { height: 1fr; }
     #left, #right { width: 1fr; }
     #events { height: 1fr; border: solid green; padding: 0 1; }
+    #focus_status { height: 3; border: solid cyan; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
     #inputs { height: 12; border: solid yellow; padding: 0 1; }
@@ -384,6 +430,10 @@ class UsagiTui(App):
             events_box = _EventsBox(id="events")
             events_box.border_title = "イベントログ"
             yield events_box
+
+            focus_status = Static("Focus: (initializing)", id="focus_status")
+            focus_status.border_title = "フォーカス"
+            yield focus_status
         yield Footer()
 
     def on_mount(self) -> None:
@@ -447,6 +497,15 @@ class UsagiTui(App):
     def _refresh(self) -> None:
         # mode button
         self.query_one("#mode", Button).label = _mode_label(self.root)
+
+        # focus indicator (bottom)
+        try:
+            focused = getattr(self, "focused", None)
+            self.query_one("#focus_status", Static).update(
+                f"Focus: {_focused_window_label(focused)}"
+            )
+        except Exception:
+            pass
 
         org_path = _fallback_org_path(self.org_path, self.root)
         self.query_one(_OrgBox).update_text(
