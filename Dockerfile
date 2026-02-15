@@ -1,28 +1,30 @@
 # syntax=docker/dockerfile:1
+FROM python:3.13-slim
 
-# --- Build Go binary ---
-FROM golang:1.23 AS go-build
-WORKDIR /src
-COPY go.mod ./
-COPY cmd ./cmd
-COPY internal ./internal
-RUN go mod download
-RUN CGO_ENABLED=0 go build -o /out/usagi-corp ./cmd/usagi-corp
-
-# --- Runtime image ---
-FROM debian:bookworm-slim
 WORKDIR /app
 
+# System deps + official CLIs
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  ca-certificates curl git bash \
+  git bash curl ca-certificates \
   nodejs npm \
   && rm -rf /var/lib/apt/lists/*
 
-# Official CLIs
+# Codex CLI (official)
 RUN npm i -g @openai/codex
+
+# Claude Code (official)
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-COPY --from=go-build /out/usagi-corp /usr/local/bin/usagi-corp
+# Python deps first (cache)
+COPY requirements.txt ./
+RUN pip install -U pip && pip install -r requirements.txt
 
-ENTRYPOINT ["usagi-corp"]
-CMD ["version"]
+# App
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY tests ./tests
+
+RUN pip install .
+
+ENTRYPOINT ["usagi"]
+CMD ["--help"]

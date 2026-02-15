@@ -1,16 +1,17 @@
-.PHONY: test go-test d-test d-shell
+.PHONY: test d-test d-shell
 
-go-test:
-	go test ./...
+test:
+	ruff check .
+	pytest -q
 
-test: go-test
-
-# Docker前提のテスト
+# Dockerが正: ローカルpipはデバッグ用途
 d-test:
-	docker build -t usagi-corp-dev .
-	docker run --rm usagi-corp-dev version
+	docker build -t usagi-dev .
+	docker run --rm usagi-dev make test
 
-# Dockerコンテナに入る（codex/claude login等）
+# Dockerコンテナに入って公式CLIでログイン等を行う
 d-shell:
-	docker build -t usagi-corp-dev .
-	docker run --rm -it -v "$$PWD":/app usagi-corp-dev bash
+	docker build -t usagi-dev .
+	docker run --rm -it \
+	  -v "$$PWD":/app \
+	  usagi-dev bash
