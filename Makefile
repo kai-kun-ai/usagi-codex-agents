@@ -71,7 +71,7 @@ run: d-build
 	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \
 	  -v "$$PWD/.usagi/sessions/claude/$(PROFILE)":/root/.claude \
 	  -w /app \
-	  $(IMAGE) usagi tui --root /work $$OFFLINE_FLAG $$DEMO_FLAG
+	  $(IMAGE) tui --root /work $$OFFLINE_FLAG $$DEMO_FLAG
 
 # 完全なデモ（ホストのWORKDIR/PROFILE不要）
 # - /work は匿名volume（ホストに永続化しない）
@@ -81,4 +81,4 @@ run: d-build
 demo: d-build
 	docker run --rm -it \
 	  -v /work \
-	  $(IMAGE) usagi tui --root /work --demo
+	  $(IMAGE) tui --root /work --demo
