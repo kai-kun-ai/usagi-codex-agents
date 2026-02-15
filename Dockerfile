@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   docker.io \
   && rm -rf /var/lib/apt/lists/*
 
+# NOTE:
+# - worker-only container execution uses Docker-outside-of-Docker.
+# - docker daemon is NOT required inside this image, but the docker CLI IS required.
+
 # Codex CLI (official)
 RUN npm i -g @openai/codex
 
