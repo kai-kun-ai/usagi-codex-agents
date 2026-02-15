@@ -93,6 +93,8 @@ usagi autopilot-start --offline
   - うさぎの稼働状態（working/idle）とタスク
   - inputs一覧（pending/processed）
   - eventsログ
+- `usagi tui --demo`
+  - API/CLIを叩かず、疑似的に inputs/status/events/outputs を更新して画面デモを行う
 
 ### サブコマンド
 

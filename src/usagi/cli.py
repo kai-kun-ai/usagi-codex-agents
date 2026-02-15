@@ -214,9 +214,10 @@ def mcp() -> None:
 def tui(
     model: str = typer.Option("codex", "--model", help="利用モデル"),
     offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
+    demo: bool = typer.Option(False, "--demo", help="デモ（疑似稼働）モード"),
 ) -> None:
     """統合CUI（管理画面）を起動。"""
-    run_tui(root=Path("."), model=model, offline=offline)
+    run_tui(root=Path("."), model=model, offline=offline, demo=demo)
 
 
 @app.command()

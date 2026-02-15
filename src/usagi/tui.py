@@ -20,6 +20,7 @@ from textual.containers import Container, Horizontal
 from textual.widgets import Button, Footer, Header, Static
 
 from usagi.autopilot import clear_stop, request_stop, stop_requested
+from usagi.demo import DemoConfig, run_demo_forever
 from usagi.state import load_status
 from usagi.watch import watch_inputs
 
@@ -118,13 +119,15 @@ class UsagiTui(App):
         ("q", "quit", "Quit"),
     ]
 
-    def __init__(self, *, root: Path, model: str, offline: bool) -> None:
+    def __init__(self, *, root: Path, model: str, offline: bool, demo: bool) -> None:
         super().__init__()
         self.root = root
         self.model = model
         self.offline = offline
+        self.demo = demo
 
         self._watch_thread: threading.Thread | None = None
+        self._demo_thread: threading.Thread | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -144,6 +147,9 @@ class UsagiTui(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        # demoモードではwatchの代わりに疑似更新を走らせる
+        if self.demo:
+            self._ensure_demo_thread()
         self.set_interval(0.5, self._refresh)
 
     def _ensure_watch_thread(self) -> None:
@@ -171,6 +177,17 @@ class UsagiTui(App):
         t.start()
         self._watch_thread = t
 
+    def _ensure_demo_thread(self) -> None:
+        if self._demo_thread is not None and self._demo_thread.is_alive():
+            return
+
+        def _run() -> None:
+            run_demo_forever(DemoConfig(root=self.root, interval_seconds=1.0))
+
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+        self._demo_thread = t
+
     def _refresh(self) -> None:
         self.query_one(_StatusBox).update_text(self.root)
         self.query_one(_InputsBox).update_text(
@@ -179,9 +196,12 @@ class UsagiTui(App):
         )
         self.query_one(_EventsBox).update_text(self.root / ".usagi/events.log")
 
-        # RUNNINGならwatchスレッドを維持
+        # RUNNINGならwatchスレッドを維持（demoのときはdemoスレッド）
         if not stop_requested(self.root):
-            self._ensure_watch_thread()
+            if self.demo:
+                self._ensure_demo_thread()
+            else:
+                self._ensure_watch_thread()
 
     def action_toggle(self) -> None:
         if stop_requested(self.root):
@@ -196,8 +216,8 @@ class UsagiTui(App):
             request_stop(self.root)
 
 
-def run_tui(*, root: Path, model: str, offline: bool) -> None:
+def run_tui(*, root: Path, model: str, offline: bool, demo: bool) -> None:
     # events.logが読めるように最低限作っておく
     (root / ".usagi").mkdir(parents=True, exist_ok=True)
     # Textual起動
-    UsagiTui(root=root, model=model, offline=offline).run()
+    UsagiTui(root=root, model=model, offline=offline, demo=demo).run()
