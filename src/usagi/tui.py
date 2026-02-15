@@ -122,6 +122,9 @@ class _InputsBox(ListView):
         self.state_path = state_path
         self.max_items = max_items
         self._paths: list[Path] = []
+        # 画面のフラッシュを避けるため、同一内容なら再描画しない
+        # signature: [(relative_name, done_flag)]
+        self._last_signature: list[tuple[str, bool]] | None = None
 
     @property
     def selected_path(self) -> Path | None:
@@ -162,6 +165,41 @@ class _InputsBox(ListView):
         items.sort(key=lambda x: x[1], reverse=True)
         items = items[: self.max_items]
 
+        # 既存選択を保持（再描画時にカーソルが飛ぶのを防ぐ）
+        prev_selected = self.selected_path
+
+        pending = 0
+        signature: list[tuple[str, bool]] = []
+        rows: list[str] = []
+
+        if not items:
+            signature = [("(no inputs)", True)]
+            rows = ["(no inputs)"]
+        else:
+            for p, mtime_ns in items:
+                last = int(state.get(str(p), 0))
+                done = last >= mtime_ns
+                if not done:
+                    pending += 1
+                try:
+                    name = str(p.relative_to(inputs_dir))
+                except Exception:
+                    name = p.name
+                signature.append((name, done))
+                mark = "✅" if done else "🕒"
+                rows.append(f"{mark} {name}")
+
+        # border_titleを更新（composeで付ける前提）
+        new_title = f"入力 (pending={pending})"
+        if self.border_title != new_title:
+            self.border_title = new_title
+
+        # 内容が同じなら何もしない（フラッシュ/点滅防止）
+        if self._last_signature == signature:
+            return
+        self._last_signature = signature
+
+        # 差分更新が面倒なので、内容が変わった時だけ全置換する
         self.clear()
         self._paths = []
 
@@ -170,25 +208,15 @@ class _InputsBox(ListView):
             self._paths = []
             return
 
-        pending = 0
-        for p, mtime_ns in items:
-            last = int(state.get(str(p), 0))
-            done = last >= mtime_ns
-            if not done:
-                pending += 1
-            mark = "✅" if done else "🕒"
-            try:
-                name = str(p.relative_to(inputs_dir))
-            except Exception:
-                name = p.name
-            self.append(ListItem(Static(f"{mark} {name}")))
+        for (p, _mtime_ns), row in zip(items, rows, strict=False):
+            self.append(ListItem(Static(row)))
             self._paths.append(p)
 
-        # border_titleを更新（composeで付ける前提）
-        self.border_title = f"入力 (pending={pending})"
-
-        # 初期選択（削除キーが効くように）
-        if self.index is None and self._paths:
+        # 選択を復元（同じファイルが残っている場合）
+        if prev_selected is not None and prev_selected in self._paths:
+            self.index = self._paths.index(prev_selected)
+        elif self.index is None and self._paths:
+            # 初期選択（削除キーが効くように）
             self.index = 0
 
 
