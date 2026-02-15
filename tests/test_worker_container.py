@@ -46,7 +46,7 @@ def test_needs_escalation() -> None:
 
 
 def test_build_container_run_cmd(tmp_path: Path) -> None:
-    worker = AgentDef(id="w1", name="W", role=ROLE_WORKER, profile="acct_a")
+    worker = AgentDef(id="w1", name="W", role=ROLE_WORKER)
     wb = WorkerBranch(
         worker_id="w1",
         branch_name="worker/w1/task1",
