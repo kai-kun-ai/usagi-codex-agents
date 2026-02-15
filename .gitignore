@@ -9,3 +9,6 @@ out/
 node_modules/
 .pytest_cache/
 .ruff_cache/
+
+# secrets/session state
+.usagi/
