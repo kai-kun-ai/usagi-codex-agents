@@ -109,7 +109,10 @@ class _EventsBox(Static):
 
 
 class _InputsBox(ListView):
-    """inputs一覧（選択/削除対応）。"""
+    """inputs一覧（選択/削除対応）。
+
+    ListViewはキー入力を自前で消費するため、削除キーはここで拾ってAppへ委譲する。
+    """
 
     def __init__(self, *, inputs_dir: Path, state_path: Path, max_items: int = 50, **kwargs):
         super().__init__(**kwargs)
@@ -125,6 +128,14 @@ class _InputsBox(ListView):
         if self.index < 0 or self.index >= len(self._paths):
             return None
         return self._paths[self.index]
+
+    def on_key(self, event) -> None:  # type: ignore[override]
+        if event.key in {"d", "delete"}:
+            try:
+                self.app.action_delete_input()  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            event.stop()
 
     def refresh_items(self) -> None:
         inputs_dir = self.inputs_dir
