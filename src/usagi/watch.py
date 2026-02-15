@@ -292,40 +292,45 @@ class WatchWorker:
             f.write(f"[{ts}] {msg}\n")
 
     def _write_report(self, src: Path, report: str) -> Path:
-        """レポートを書き出す。
+        """レポートを書き出す（常に1ファイルに追記）。
 
-        旧仕様は `outputs/<input_stem>.report.md` だったが、inputs の鏡になってしまう。
-        まずは project/job_id/workdir で追えるように outputs を project 配下に分離する。
+        運用方針:
+        - inputs は（同一rootなら）すべて同一プロジェクトの依頼として扱う
+        - outputs は分割せず、社長が定期的に見る "メモリ" として1つのmdに追記する
 
-        互換のため、旧パスにもコピーを置く（将来削除予定）。
+        出力:
+        - `outputs/report.md` に追記
+
+        詳細な受け渡し/履歴は `workdir/.usagi/artifacts/` を参照。
         """
 
-        # workdir から project/job_id を推定する（watch が作るパス前提）
-        project = "default"
-        job_id = src.stem
-        try:
-            rel_work = self._current_workdir.relative_to(self.work_root)  # type: ignore[attr-defined]
-            parts = list(rel_work.parts)
-            if len(parts) >= 2:
-                project = parts[0]
-                job_id = parts[1]
-        except Exception:
-            # fallback
-            project = "default"
-            job_id = src.stem
-
-        out_dir = self.outputs_dir / project / job_id
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out = out_dir / "report.md"
-        out.write_text(report, encoding="utf-8")
-
-        # 互換: 旧パスにもコピー
         self.outputs_dir.mkdir(parents=True, exist_ok=True)
-        legacy = self.outputs_dir / f"{src.stem}.report.md"
+        out = self.outputs_dir / "report.md"
+
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
         try:
-            legacy.write_text(report, encoding="utf-8")
+            rel_src = src.relative_to(self.inputs_dir)
+        except Exception:
+            rel_src = Path(src.name)
+
+        # workdir の場所も追えるように書く
+        workdir_rel = "(unknown)"
+        try:
+            wd = self._current_workdir  # type: ignore[attr-defined]
+            workdir_rel = str(wd)
         except Exception:
             pass
+
+        header = (
+            "\n\n---\n"
+            f"## [{ts}] input: {rel_src}\n\n"
+            f"- workdir: `{workdir_rel}`\n\n"
+        )
+
+        with out.open("a", encoding="utf-8") as f:
+            f.write(header)
+            f.write(report.rstrip())
+            f.write("\n")
 
         return out
 
