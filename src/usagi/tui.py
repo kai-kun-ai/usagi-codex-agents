@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 from pathlib import Path
 
@@ -53,12 +54,63 @@ class _EventsBox(Static):
         self.update("\n".join(tail) if tail else "(no events yet)")
 
 
+class _InputsBox(Static):
+    def update_text(
+        self,
+        inputs_dir: Path,
+        state_path: Path,
+        max_items: int = 12,
+    ) -> None:
+        inputs_dir.mkdir(parents=True, exist_ok=True)
+
+        # state.json: {"/abs/or/rel/path.md": mtime_ns}
+        state: dict[str, int] = {}
+        if state_path.exists():
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+            except Exception:
+                state = {}
+
+        items: list[tuple[Path, int]] = []
+        for p in sorted(inputs_dir.glob("**/*.md")):
+            try:
+                st = p.stat()
+            except FileNotFoundError:
+                continue
+            items.append((p, int(st.st_mtime_ns)))
+
+        items.sort(key=lambda x: x[1], reverse=True)
+
+        lines: list[str] = []
+        if not items:
+            self.update("(no inputs)")
+            return
+
+        pending = 0
+        for p, mtime_ns in items[:max_items]:
+            last = int(state.get(str(p), 0))
+            done = last >= mtime_ns
+            if not done:
+                pending += 1
+            mark = "✅" if done else "🕒"
+            # Path.is_relative_to は3.9+ だが、互換のため例外で対応
+            try:
+                name = str(p.relative_to(inputs_dir))
+            except Exception:
+                name = p.name
+            lines.append(f"{mark} {name}")
+
+        header = f"inputs (pending={pending})"
+        self.update(header + "\n\n" + "\n".join(lines))
+
+
 class UsagiTui(App):
     CSS = """
     #main { height: 1fr; }
     #left, #right { width: 1fr; }
     #events { height: 1fr; }
     #status { height: 1fr; }
+    #inputs { height: auto; }
     """
 
     BINDINGS = [
@@ -82,6 +134,8 @@ class UsagiTui(App):
                     yield Static("操作", classes="box")
                     yield Button("Start (clear STOP)", id="start")
                     yield Button("Stop (create STOP)", id="stop")
+                    yield Static("入力", classes="box")
+                    yield _InputsBox(id="inputs")
                 with Container(id="right"):
                     yield Static("状態", classes="box")
                     yield _StatusBox(id="status")
@@ -119,6 +173,10 @@ class UsagiTui(App):
 
     def _refresh(self) -> None:
         self.query_one(_StatusBox).update_text(self.root)
+        self.query_one(_InputsBox).update_text(
+            self.root / "inputs",
+            self.root / ".usagi/state.json",
+        )
         self.query_one(_EventsBox).update_text(self.root / ".usagi/events.log")
 
         # RUNNINGならwatchスレッドを維持
