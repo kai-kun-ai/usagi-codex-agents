@@ -1,17 +1,84 @@
-.PHONY: test d-test d-shell
+.PHONY: test d-test d-build d-shell run demo
+
+IMAGE ?= usagi-dev
+WORKDIR ?=
+PROFILE ?= default
+OFFLINE ?= 0
+DEMO ?= 0
+
+# ----------------
+# Local (debug)
+# ----------------
 
 test:
 	ruff check .
 	pytest -q
 
-# Dockerが正: ローカルpipはデバッグ用途
-d-test:
-	docker build -t usagi-dev .
-	docker run --rm usagi-dev make test
+# ----------------
+# Docker (primary)
+# ----------------
+
+d-build:
+	docker build -t $(IMAGE) .
+
+d-test: d-build
+	docker run --rm $(IMAGE) make test
 
 # Dockerコンテナに入って公式CLIでログイン等を行う
-d-shell:
-	docker build -t usagi-dev .
+# 例: make d-shell PROFILE=alice
+# - /root/.codex と /root/.claude は profile で永続化
+# - /app はこのリポジトリ
+# - /work は作業ルート（絶対パス必須）
+
+d-shell: d-build
+	@if [ -z "$(WORKDIR)" ]; then \
+		echo "WORKDIR is required (absolute path). Example: make d-shell WORKDIR=$$PWD PROFILE=alice"; \
+		exit 2; \
+	fi
+	@case "$(WORKDIR)" in \
+		/*) ;; \
+		*) echo "WORKDIR must be an absolute path: $(WORKDIR)"; exit 2 ;; \
+	esac
 	docker run --rm -it \
+	  -v "$(WORKDIR)":/work \
 	  -v "$$PWD":/app \
-	  usagi-dev bash
+	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \
+	  -v "$$PWD/.usagi/sessions/claude/$(PROFILE)":/root/.claude \
+	  -w /app \
+	  $(IMAGE) bash
+
+# 統合CUIを起動
+# 例: make run WORKDIR=$$PWD PROFILE=alice
+#      make run WORKDIR=$$PWD PROFILE=alice OFFLINE=1
+#      make run WORKDIR=$$PWD PROFILE=alice DEMO=1
+
+run: d-build
+	@if [ -z "$(WORKDIR)" ]; then \
+		echo "WORKDIR is required (absolute path). Example: make run WORKDIR=$$PWD PROFILE=alice"; \
+		exit 2; \
+	fi
+	@case "$(WORKDIR)" in \
+		/*) ;; \
+		*) echo "WORKDIR must be an absolute path: $(WORKDIR)"; exit 2 ;; \
+	esac
+	@OFFLINE_FLAG=""; \
+	if [ "$(OFFLINE)" = "1" ]; then OFFLINE_FLAG="--offline"; fi; \
+	DEMO_FLAG=""; \
+	if [ "$(DEMO)" = "1" ]; then DEMO_FLAG="--demo"; fi; \
+	docker run --rm -it \
+	  -v "$(WORKDIR)":/work \
+	  -v "$$PWD":/app \
+	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \
+	  -v "$$PWD/.usagi/sessions/claude/$(PROFILE)":/root/.claude \
+	  -w /app \
+	  $(IMAGE) usagi tui --root /work $$OFFLINE_FLAG $$DEMO_FLAG
+
+# 完全なデモ（ホストのWORKDIR/PROFILE不要）
+# - /work は匿名volume（ホストに永続化しない）
+# - セッションマウントもしない
+# - API/CLIは叩かない
+
+demo: d-build
+	docker run --rm -it \
+	  -v /work \
+	  $(IMAGE) usagi tui --root /work --demo
