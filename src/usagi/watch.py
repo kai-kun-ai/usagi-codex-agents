@@ -478,7 +478,13 @@ def watch_inputs(
                     offline=offline,
                     repo_root=work_root,
                 )
-                boss_tick(root=root, outputs_dir=outputs_dir, status_path=status_path)
+                boss_tick(
+                    root=root,
+                    outputs_dir=outputs_dir,
+                    status_path=status_path,
+                    org=org,
+                    runtime=runtime,
+                )
             except Exception:
                 pass
 
