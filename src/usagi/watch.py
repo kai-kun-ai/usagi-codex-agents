@@ -138,7 +138,17 @@ class WatchWorker:
             except queue.Empty:
                 continue
             try:
-                self._process(job)
+                try:
+                    self._process(job)
+                except Exception as e:  # noqa: BLE001
+                    # ここで落ちるとワーカースレッドが死んで入力が進まなくなる。
+                    # 例外はイベントログ/詳細ログに残して継続する。
+                    self._event(f"worker crash: {type(e).__name__}: {e}")
+                    import logging
+                    import traceback
+
+                    logging.getLogger(__name__).error("watch worker crashed", exc_info=True)
+                    self._event(traceback.format_exc())
             finally:
                 self.q.task_done()
 
@@ -165,7 +175,7 @@ class WatchWorker:
                 "## 元の内容\n\n```\n" + raw_text + "\n```\n"
             )
             self._write_report(p, report)
-            self.state.set_mtime_ns(p, st.st_mtime_ns)
+            self.state.set_mtime_ns(p, file_stat.st_mtime_ns)
             self.state.save()
             return
 
@@ -184,7 +194,7 @@ class WatchWorker:
                 "入力ファイルが空です。\n"
             )
             self._write_report(p, report)
-            self.state.set_mtime_ns(p, st.st_mtime_ns)
+            self.state.set_mtime_ns(p, file_stat.st_mtime_ns)
             self.state.save()
             return
 
