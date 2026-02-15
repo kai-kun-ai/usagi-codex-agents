@@ -655,33 +655,49 @@ class UsagiTui(App):
             return
 
         lines = log.read_text(encoding="utf-8").splitlines()
+        if not lines:
+            return
         # 直近だけ（長すぎ防止）
         dialog = lines[-50:]
-        ts = time.strftime("%Y-%m-%d %H:%M:%S")
-        p = place_input_for_boss(self.root, title=f"secretary {ts}", dialog_lines=dialog)
 
-        # 既存のboss_inbox（社長が見るべき通知）にも入れておく
-        write_boss_input(
-            self.root,
-            BossInput(source="secretary", text=f"秘書が input を設置しました: {p}"),
-        )
+        # AI で要約してから submit（別スレッドでブロッキング回避）
+        def _summarize_and_submit() -> None:
+            summary = self._secretary.summarize_for_boss(dialog)
 
-        # 提出したら秘書チャットをアーカイブしてクリア
-        archive = self.root / ".usagi/secretary.archive.log"
-        archive.parent.mkdir(parents=True, exist_ok=True)
-        with archive.open("a", encoding="utf-8") as f:
-            f.write(f"\n---\n[{ts}] submitted: {p.name}\n")
-            for line in dialog:
-                f.write(line + "\n")
-        log.write_text("", encoding="utf-8")
+            ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            p = place_input_for_boss(
+                self.root,
+                title=f"secretary {ts}",
+                dialog_lines=dialog,
+                summary=summary,
+            )
 
-        events = self.root / ".usagi/events.log"
-        events.parent.mkdir(parents=True, exist_ok=True)
-        with events.open("a", encoding="utf-8") as f:
-            f.write(f"[{ts}] secretary: placed input {p.name}\n")
-            f.write(f"[{ts}] secretary: archived+cleared chat\n")
+            write_boss_input(
+                self.root,
+                BossInput(
+                    source="secretary",
+                    text=f"秘書が input を設置しました: {p}",
+                ),
+            )
 
-        self._refresh()
+            # アーカイブしてクリア
+            archive = self.root / ".usagi/secretary.archive.log"
+            archive.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open("a", encoding="utf-8") as f:
+                f.write(f"\n---\n[{ts}] submitted: {p.name}\n")
+                for line in dialog:
+                    f.write(line + "\n")
+            log.write_text("", encoding="utf-8")
+
+            events = self.root / ".usagi/events.log"
+            events.parent.mkdir(parents=True, exist_ok=True)
+            with events.open("a", encoding="utf-8") as f:
+                f.write(f"[{ts}] secretary: placed input {p.name}\n")
+                f.write(f"[{ts}] secretary: archived+cleared chat\n")
+
+            self.call_from_thread(self._refresh)
+
+        threading.Thread(target=_summarize_and_submit, daemon=True).start()
 
 
 def run_tui(*, root: Path, org_path: Path, model: str, offline: bool, demo: bool) -> None:

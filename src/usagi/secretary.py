@@ -93,6 +93,46 @@ class SecretaryAgent:
         self._history.append({"role": "assistant", "content": reply})
         return reply
 
+    def summarize_for_boss(self, dialog_lines: list[str]) -> str:
+        """対話ログを要約して社長向けの依頼仕様書を生成する。"""
+        dialog_text = "\n".join(dialog_lines[-50:])
+
+        if self.config.offline:
+            return self._fallback_summary(dialog_text)
+
+        try:
+            return self._llm_summarize(dialog_text)
+        except Exception as e:
+            logger.warning("secretary summarize failed, using fallback: %s", e)
+            return self._fallback_summary(dialog_text)
+
+    def _llm_summarize(self, dialog_text: str) -> str:
+        from usagi.llm_backend import LLM, LLMConfig
+
+        llm = LLM(LLMConfig(backend="codex_cli", model="codex"))
+        prompt = (
+            f"{SECRETARY_SYSTEM_PROMPT}\n\n"
+            "## タスク\n"
+            "以下の対話ログから、社長（AIエージェント）への依頼内容を整理してください。\n"
+            "出力フォーマット:\n"
+            "```\n"
+            "## 目的\n(依頼の目的を1-2文で)\n\n"
+            "## やること\n- (具体的なタスクをリストで)\n\n"
+            "## 制約\n- (あれば制約をリストで)\n"
+            "```\n\n"
+            f"## 対話ログ\n{dialog_text}\n"
+        )
+        result = llm.generate(prompt).strip()
+        return result if result else self._fallback_summary(dialog_text)
+
+    def _fallback_summary(self, dialog_text: str) -> str:
+        """オフライン時のフォールバック: 対話ログをそのまま整形。"""
+        return (
+            "## 目的\n(秘書との対話から抽出)\n\n"
+            "## やること\n(対話ログを参照)\n\n"
+            "## 対話ログ\n" + dialog_text
+        )
+
     def _fallback_reply(self) -> str:
         reply = FALLBACK_REPLIES[self._fallback_idx % len(FALLBACK_REPLIES)]
         self._fallback_idx += 1
@@ -112,7 +152,19 @@ def append_secretary_log(root: Path, who: str, text: str) -> None:
         f.write(f"[{ts}] {who}: {text}\n")
 
 
-def format_input_from_dialog(title: str, dialog_lines: list[str]) -> str:
+def format_input_from_dialog(
+    title: str,
+    dialog_lines: list[str],
+    *,
+    summary: str | None = None,
+) -> str:
+    if summary:
+        return (
+            "---\n"
+            f"project: {title}\n"
+            "---\n\n"
+            f"{summary}\n"
+        )
     body = "\n".join(dialog_lines).strip()
     return (
         "# usagi spec\n\n"
@@ -124,14 +176,20 @@ def format_input_from_dialog(title: str, dialog_lines: list[str]) -> str:
 
 
 def place_input_for_boss(
-    root: Path, title: str, dialog_lines: list[str],
+    root: Path,
+    title: str,
+    dialog_lines: list[str],
+    *,
+    summary: str | None = None,
 ) -> Path:
     inputs_dir = root / "inputs" / "secretary"
     inputs_dir.mkdir(parents=True, exist_ok=True)
     ts = time.strftime("%Y%m%d-%H%M%S")
     p = inputs_dir / f"{ts}.md"
     p.write_text(
-        format_input_from_dialog(title=title, dialog_lines=dialog_lines),
+        format_input_from_dialog(
+            title=title, dialog_lines=dialog_lines, summary=summary,
+        ),
         encoding="utf-8",
     )
     return p
