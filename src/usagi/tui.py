@@ -30,6 +30,7 @@ from usagi.secretary import (
     SecretaryAgent,
     SecretaryConfig,
     append_secretary_log,
+    infer_project,
     place_input_for_boss,
     secretary_log_path,
 )
@@ -665,12 +666,14 @@ class UsagiTui(App):
         def _summarize_and_submit() -> None:
             summary = self._secretary.summarize_for_boss(dialog)
 
+            project = infer_project(dialog)
             ts = time.strftime("%Y-%m-%d %H:%M:%S")
             p = place_input_for_boss(
                 self.root,
                 title=f"secretary {ts}",
                 dialog_lines=dialog,
                 summary=summary,
+                project=project,
             )
 
             write_boss_input(
@@ -693,7 +696,7 @@ class UsagiTui(App):
             events = self.root / ".usagi/events.log"
             events.parent.mkdir(parents=True, exist_ok=True)
             with events.open("a", encoding="utf-8") as f:
-                f.write(f"[{ts}] secretary: placed input {p.name}\n")
+                f.write(f"[{ts}] secretary: placed input {p.relative_to(self.root)}\n")
                 f.write(f"[{ts}] secretary: archived+cleared chat\n")
 
             self.call_from_thread(self._refresh)

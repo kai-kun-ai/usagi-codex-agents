@@ -175,14 +175,39 @@ def format_input_from_dialog(
     )
 
 
+def infer_project(dialog_lines: list[str]) -> str:
+    """秘書対話ログから project 名を推定する。
+
+    ルール（暫定）:
+    - `project:` / `プロジェクト:` / `PJ:` のような行があればそれを採用
+    - 見つからなければ `default`
+
+    NOTE:
+    - 本格的には TUI で project を明示入力させる/LLM に整形させる想定。
+    """
+
+    keys = ("project:", "プロジェクト:", "pj:")
+    for line in dialog_lines:
+        s = line.strip()
+        lower = s.lower()
+        for k in keys:
+            if lower.startswith(k):
+                v = s.split(":", 1)[1].strip()
+                if v:
+                    return v
+    return "default"
+
+
 def place_input_for_boss(
     root: Path,
     title: str,
     dialog_lines: list[str],
     *,
     summary: str | None = None,
+    project: str | None = None,
 ) -> Path:
-    inputs_dir = root / "inputs" / "secretary"
+    project_name = project or infer_project(dialog_lines)
+    inputs_dir = root / "inputs" / "secretary" / project_name
     inputs_dir.mkdir(parents=True, exist_ok=True)
     ts = time.strftime("%Y%m%d-%H%M%S")
     p = inputs_dir / f"{ts}.md"
