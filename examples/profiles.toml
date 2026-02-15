@@ -1,0 +1,12 @@
+# profiles.toml サンプル
+# 各 Codex アカウントを定義し、org.toml の agent.profile で参照する。
+
+[[profiles]]
+name = "account_a"
+codex_config = "/home/user/.codex/config_a.toml"
+docker_image = "usagi-worker:latest"
+
+[[profiles]]
+name = "account_b"
+codex_config = "/home/user/.codex/config_b.toml"
+docker_image = "usagi-worker:latest"

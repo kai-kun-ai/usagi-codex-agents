@@ -36,6 +36,7 @@ name = "実装リスA"
 emoji = "🐿️"
 role = "worker"
 model = "codex"
+profile = "account_a"
 reports_to = "dev_mgr"
 
 [[agents]]
@@ -44,6 +45,7 @@ name = "実装リスB"
 emoji = "🐿️"
 role = "worker"
 model = "codex"
+profile = "account_b"
 reports_to = "dev_mgr"
 
 [[agents]]
