@@ -15,7 +15,7 @@ from usagi.agents import (
     AgentMessage,
     LLMBackend,
     OfflineBackend,
-    OpenAIBackend,
+    CodexCLIBackend,
 )
 from usagi.report import render_report
 from usagi.spec import UsagiSpec
@@ -42,7 +42,7 @@ def run_pipeline(
     offline: bool,
     ui: Ui,
 ) -> RunResult:
-    backend: LLMBackend = OfflineBackend() if offline else OpenAIBackend()
+    backend: LLMBackend = OfflineBackend() if offline else CodexCLIBackend()
     messages: list[AgentMessage] = []
     started = datetime.now(tz=UTC).isoformat()
 

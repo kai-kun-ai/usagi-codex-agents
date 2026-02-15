@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from usagi.agents import AgentMessage, LLMBackend, OfflineBackend, OpenAIBackend, UsagiAgent
+from usagi.agents import AgentMessage, CodexCLIBackend, LLMBackend, OfflineBackend, UsagiAgent
 from usagi.approval import Assignment, assign_default
 from usagi.artifacts import write_artifact
 from usagi.git_ops import team_branch
@@ -54,7 +54,7 @@ def run_approval_pipeline(
     runtime: RuntimeMode,
     root: Path,
 ) -> ApprovalRunResult:
-    backend: LLMBackend = OfflineBackend() if offline else OpenAIBackend()
+    backend: LLMBackend = OfflineBackend() if offline else CodexCLIBackend()
     started = datetime.now(tz=UTC).isoformat()
 
     # assignment

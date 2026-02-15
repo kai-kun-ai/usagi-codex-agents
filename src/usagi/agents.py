@@ -29,6 +29,19 @@ class OpenAIBackend:
         return resp.output_text or ""
 
 
+class CodexCLIBackend:
+    """Codex CLI (`codex exec`) を使うバックエンド。
+
+    SECRETARY と同じ経路に寄せるため、decision-makers もこれを使う。
+    """
+
+    def generate(self, prompt: str, model: str) -> str:
+        from usagi.llm_backend import LLM, LLMConfig
+
+        llm = LLM(LLMConfig(backend="codex_cli", model=model))
+        return llm.generate(prompt)
+
+
 class OfflineBackend:
     """APIを呼ばずにダミー応答を返すバックエンド。"""
 
