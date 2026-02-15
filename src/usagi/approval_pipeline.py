@@ -24,7 +24,6 @@ from pathlib import Path
 from usagi.agents import AgentMessage, CodexCLIBackend, LLMBackend, OfflineBackend, UsagiAgent
 from usagi.approval import Assignment, assign_default
 from usagi.artifacts import write_artifact
-from usagi.codex_review import run_codex_review
 from usagi.prompt_compact import compact_for_prompt
 from usagi.git_ops import team_branch
 from usagi.org import AgentDef, Organization
@@ -131,12 +130,26 @@ def run_approval_pipeline(
 
     # lead: review/approve
     _set("lead", lead.name or lead.id, "working", f"review: {spec.project or 'default'}")
-
-    # Use Codex CLI review for the lead step (diff-only). Keeps reviewer/coder separation.
-    lead_review = _run_lead_review_with_codex(
-        diff_text=impl.content,
-        workdir=workdir,
+    lead_agent = _agent_for(
+        lead,
+        role="reviewer",
+        system_prompt=(
+            "あなたは課長(lead)でレビュー責任者です。\n"
+            "ワーカーの差分をレビューし、\n"
+            "承認する場合は必ず 'APPROVE' と書き、差戻しなら 'CHANGES_REQUESTED' と書いてください。"
+        ),
     )
+    impl_compact = compact_for_prompt(
+        impl.content,
+        stage="lead_review_impl",
+        max_chars=runtime.compress.max_chars_default,
+        enabled=runtime.compress.enabled,
+    )
+    review_prompt = (
+        f"ワーカー差分(圧縮):\n\n{impl_compact}\n\n"
+        "判断: APPROVE / CHANGES_REQUESTED\n"
+    )
+    lead_review = lead_agent.run(user_prompt=review_prompt, model=model, backend=backend)
     msgs.append(lead_review)
     write_artifact(workdir, "30-lead-review.md", lead_review.content)
     _set("lead", lead.name or lead.id, "idle", "")
@@ -254,10 +267,6 @@ def run_approval_pipeline(
     write_artifact(workdir, "90-report.md", report)
 
     return ApprovalRunResult(report=report, messages=msgs, assignment=assignment)
-
-
-def _run_lead_review_with_codex(*, diff_text: str, workdir: Path) -> AgentMessage:
-    return run_codex_review(diff_text=diff_text, cwd=workdir)
 
 
 def _run_worker_step_worktree(
