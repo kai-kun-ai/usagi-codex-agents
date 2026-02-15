@@ -3,6 +3,7 @@
 [[agents]]
 id = "boss"
 name = "社長うさぎ"
+emoji = "🐰"
 role = "boss"
 model = "codex"
 reports_to = ""
@@ -13,6 +14,7 @@ memory = "memories/boss.md"
 [[agents]]
 id = "ghost"
 name = "ゴースト社長"
+emoji = "👻"
 role = "ghost_boss"
 model = "codex"
 reports_to = "boss"
@@ -21,7 +23,8 @@ memory = "memories/ghost_boss.md"
 
 [[agents]]
 id = "dev_mgr"
-name = "開発部長うさぎ"
+name = "開発部長キツネ"
+emoji = "🦊"
 role = "manager"
 model = "codex"
 reports_to = "boss"
@@ -29,21 +32,24 @@ can_command = ["w1", "w2"]
 
 [[agents]]
 id = "w1"
-name = "ワーカー1"
+name = "実装リスA"
+emoji = "🐿️"
 role = "worker"
 model = "codex"
 reports_to = "dev_mgr"
 
 [[agents]]
 id = "w2"
-name = "ワーカー2"
+name = "実装リスB"
+emoji = "🐿️"
 role = "worker"
 model = "codex"
 reports_to = "dev_mgr"
 
 [[agents]]
 id = "qa_mgr"
-name = "品質部長うさぎ"
+name = "品質部長アライグマ"
+emoji = "🦝"
 role = "manager"
 model = "codex"
 reports_to = "boss"
@@ -51,7 +57,8 @@ can_command = ["rev1"]
 
 [[agents]]
 id = "rev1"
-name = "監査うさぎ"
+name = "監査フクロウ"
+emoji = "🦉"
 role = "reviewer"
 model = "codex"
 reports_to = "qa_mgr"
@@ -59,7 +66,8 @@ reports_to = "qa_mgr"
 # 第2部門サンプル（運用/自動化）
 [[agents]]
 id = "ops_mgr"
-name = "運用部長うさぎ"
+name = "運用部長オオカミ"
+emoji = "🐺"
 role = "manager"
 model = "codex"
 reports_to = "boss"
@@ -67,14 +75,16 @@ can_command = ["ops1", "ops2"]
 
 [[agents]]
 id = "ops1"
-name = "運用ワーカー1"
+name = "運用イヌA"
+emoji = "🐶"
 role = "worker"
 model = "codex"
 reports_to = "ops_mgr"
 
 [[agents]]
 id = "ops2"
-name = "運用ワーカー2"
+name = "運用イヌB"
+emoji = "🐶"
 role = "worker"
 model = "codex"
 reports_to = "ops_mgr"

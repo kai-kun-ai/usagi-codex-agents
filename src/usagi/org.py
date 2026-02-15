@@ -70,6 +70,7 @@ class AgentDef:
     role: str  # boss | ghost_boss | manager | worker | reviewer | ...
     model: str = "codex"
 
+    emoji: str = ""  # 表示用（例: 🐰 🐶）
     reports_to: str = ""  # 上長id（最上位は空）
     can_command: list[str] = field(default_factory=list)  # 指揮できる相手のid
 
@@ -168,6 +169,7 @@ def _parse_agent_new(data: dict) -> AgentDef:
         name=str(data.get("name", "名無しうさぎ")),
         role=str(data.get("role", ROLE_WORKER)),
         model=str(data.get("model", "codex")),
+        emoji=str(data.get("emoji", "")),
         reports_to=str(data.get("reports_to", "")),
         can_command=list(data.get("can_command", []) or []),
         personality_path=data.get("personality"),
@@ -199,6 +201,7 @@ def _load_org_legacy(raw: dict) -> Organization:
         name=boss_data.get("name", "社長うさぎ"),
         role=ROLE_BOSS,
         model=boss_data.get("model", "codex"),
+        emoji=boss_data.get("emoji", ""),
         reports_to="",
         can_command=[],
         personality_path=boss_data.get("personality"),
@@ -215,6 +218,7 @@ def _load_org_legacy(raw: dict) -> Organization:
             name=mgr_data.get("name", f"部長うさぎ{idx}"),
             role=ROLE_MANAGER,
             model=mgr_data.get("model", "codex"),
+            emoji=mgr_data.get("emoji", ""),
             reports_to="boss",
             can_command=[],
             personality_path=mgr_data.get("personality"),
@@ -234,6 +238,7 @@ def _load_org_legacy(raw: dict) -> Organization:
                     name=m.get("name", f"メンバー{midx}"),
                     role=role,
                     model=m.get("model", "codex"),
+                    emoji=m.get("emoji", ""),
                     reports_to=mgr_id,
                     can_command=[],
                     personality_path=m.get("personality"),
