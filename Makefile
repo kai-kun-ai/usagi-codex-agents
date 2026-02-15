@@ -22,7 +22,9 @@ d-build:
 	docker build -t $(IMAGE) .
 
 d-test: d-build
-	docker run --rm $(IMAGE) make test
+	docker run --rm \
+	  -v /var/run/docker.sock:/var/run/docker.sock \
+	  $(IMAGE) make test
 
 # Dockerコンテナに入って公式CLIでログイン等を行う
 # 例: make d-shell PROFILE=alice
@@ -40,6 +42,7 @@ d-shell: d-build
 		*) echo "WORKDIR must be an absolute path: $(WORKDIR)"; exit 2 ;; \
 	esac
 	docker run --rm -it \
+	  -v /var/run/docker.sock:/var/run/docker.sock \
 	  -e USAGI_DISCORD_TOKEN \
 	  -e USAGI_DISCORD_CHANNEL_ID \
 	  -e USAGI_DISCORD_WEBHOOK_URL \
@@ -69,6 +72,7 @@ run: d-build
 	DEMO_FLAG=""; \
 	if [ "$(DEMO)" = "1" ]; then DEMO_FLAG="--demo"; fi; \
 	docker run --rm -it \
+	  -v /var/run/docker.sock:/var/run/docker.sock \
 	  -e USAGI_DISCORD_TOKEN \
 	  -e USAGI_DISCORD_CHANNEL_ID \
 	  -e USAGI_DISCORD_WEBHOOK_URL \
@@ -86,6 +90,7 @@ run: d-build
 
 demo: d-build
 	docker run --rm -it \
+	  -v /var/run/docker.sock:/var/run/docker.sock \
 	  -v /work \
 	  -w /app \
 	  $(IMAGE) tui --root /work --org /app/examples/org.toml --demo

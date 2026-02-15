@@ -487,6 +487,7 @@ class UsagiTui(App):
                 recursive=True,
                 org_path=self.org_path,
                 runtime_path=self.root / "usagi.runtime.toml",
+                worker_pool_size=5,
                 stop_file=self.root / ".usagi/STOP",
                 status_path=self.root / ".usagi/status.json",
                 event_log_path=self.root / ".usagi/events.log",

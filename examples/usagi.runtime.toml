@@ -23,6 +23,12 @@ docker_required = true
 # PR merge等の権限者（社長id）
 boss_id = "boss"
 
+# autopilot/watch で同時起動するworkerコンテナ数
+worker_pool_size = 5
+
+# worker処理を別コンテナ(usagi-worker:latest)で実行する
+use_worker_container = true
+
 [autopilot]
 enabled = false
 inputs_dir = "inputs"

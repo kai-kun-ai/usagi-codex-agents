@@ -55,6 +55,8 @@ class RuntimeMode:
     docker_required: bool = True
 
     boss_id: str = "boss"  # PR merge等の実行権限者
+    worker_pool_size: int = 5  # autopilot/watch で同時起動するworkerコンテナ数
+    use_worker_container: bool = True  # worker処理を別コンテナで実行する
 
 
 def load_runtime(path: Path | None = None) -> RuntimeMode:
@@ -94,4 +96,6 @@ def load_runtime(path: Path | None = None) -> RuntimeMode:
         gh_enabled=bool(system.get("gh_enabled", False)),
         docker_required=bool(system.get("docker_required", True)),
         boss_id=str(system.get("boss_id", "boss")),
+        worker_pool_size=int(system.get("worker_pool_size", 5)),
+        use_worker_container=bool(system.get("use_worker_container", True)),
     )
