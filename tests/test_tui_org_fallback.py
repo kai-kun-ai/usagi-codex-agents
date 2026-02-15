@@ -24,6 +24,9 @@ def test_fallback_org_path_prefers_project_root(monkeypatch, tmp_path: Path) -> 
     ex = repo_root / "examples/org.toml"
     ex.write_text("x", encoding="utf-8")
 
+    # CWDに examples/org.toml が存在すると早期returnされるので、CWDを隔離
+    monkeypatch.chdir(tmp_path)
+
     # __file__ 由来のrepo_rootが外れても、探索で拾えること
     monkeypatch.setattr(tui, "_repo_root", lambda: tmp_path / "site-packages")
 
