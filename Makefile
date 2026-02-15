@@ -24,7 +24,8 @@ d-build:
 d-test: d-build
 	docker run --rm \
 	  -v /var/run/docker.sock:/var/run/docker.sock \
-	  $(IMAGE) make test
+	  --entrypoint bash \
+	  $(IMAGE) -lc 'make test'
 
 # Dockerコンテナに入って公式CLIでログイン等を行う
 # 例: make d-shell PROFILE=alice
@@ -51,7 +52,8 @@ d-shell: d-build
 	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \
 	  -v "$$PWD/.usagi/sessions/claude/$(PROFILE)":/root/.claude \
 	  -w /app \
-	  $(IMAGE) bash
+	  --entrypoint bash \
+	  $(IMAGE)
 
 # 統合CUIを起動
 # 例: make run WORKDIR=$$PWD PROFILE=alice

@@ -57,6 +57,7 @@ class RuntimeMode:
     boss_id: str = "boss"  # PR merge等の実行権限者
     worker_pool_size: int = 5  # autopilot/watch で同時起動するworkerコンテナ数
     use_worker_container: bool = True  # worker処理を別コンテナで実行する
+    worker_image_build: str = "auto"  # auto | never
 
 
 def load_runtime(path: Path | None = None) -> RuntimeMode:
@@ -98,4 +99,5 @@ def load_runtime(path: Path | None = None) -> RuntimeMode:
         boss_id=str(system.get("boss_id", "boss")),
         worker_pool_size=int(system.get("worker_pool_size", 5)),
         use_worker_container=bool(system.get("use_worker_container", True)),
+        worker_image_build=str(system.get("worker_image_build", "auto")),
     )
