@@ -15,11 +15,19 @@ class CLIBackend:
     command: list[str]
     timeout_seconds: int = 120
 
-    def run(self, prompt: str, *, env: dict[str, str] | None = None) -> str:
+    def run(
+        self,
+        prompt: str,
+        *,
+        env: dict[str, str] | None = None,
+        args: list[str] | None = None,
+        use_stdin: bool = True,
+    ) -> str:
+        cmd = self.command + (args or [])
         try:
             proc = subprocess.run(
-                self.command,
-                input=prompt,
+                cmd,
+                input=prompt if use_stdin else None,
                 text=True,
                 capture_output=True,
                 timeout=self.timeout_seconds,

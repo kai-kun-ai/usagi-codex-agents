@@ -59,19 +59,32 @@ class LLM:
 
     def _cli(self, prompt: str) -> str:
         cmd = self.cfg.cli_command
+        backend = self.cfg.backend
+
+        # sensible defaults
         if not cmd:
-            # sensible defaults
-            if self.cfg.backend == "codex_cli":
-                cmd = ["codex"]
-            else:
-                cmd = ["claude"]
+            cmd = ["codex"] if backend == "codex_cli" else ["claude"]
 
         env = None
         if self.cfg.home_dir:
             env = dict(**os.environ)
             env["HOME"] = self.cfg.home_dir
 
-        # CLI側がモデル指定を受けられる場合のため、promptにモデル情報を含める
         full_prompt = f"[model={self.cfg.model}]\n{prompt}"
-        return CLIBackend(cmd).run(full_prompt, env=env).strip()
+
+        # Codex: official docs mention `codex exec "..."` for non-interactive automation.
+        if backend == "codex_cli":
+            return (
+                CLIBackend(cmd)
+                .run(
+                    "",
+                    env=env,
+                    args=["exec", full_prompt],
+                    use_stdin=False,
+                )
+                .strip()
+            )
+
+        # Claude: CLI behavior varies; default to stdin-based prompt.
+        return CLIBackend(cmd).run(full_prompt, env=env, use_stdin=True).strip()
 
