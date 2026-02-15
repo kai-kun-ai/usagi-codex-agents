@@ -35,6 +35,26 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _discover_project_roots(root: Path) -> list[Path]:
+    """org.toml探索のための候補ルート一覧。
+
+    site-packages 配下にインストールされると __file__ からは repo を辿れないため、
+    CWD や作業rootなど複数の起点から親を辿って探す。
+    """
+
+    # 優先順位: 実行root（/workなど）→ CWD → __file__由来
+    bases = [root, Path.cwd(), _repo_root()]
+    roots: list[Path] = []
+    for b in bases:
+        for p in [b, *b.parents]:
+            if p in roots:
+                continue
+            if (p / "examples/org.toml").exists():
+                roots.append(p)
+                break
+    return roots
+
+
 def _fallback_org_path(org_path: Path, root: Path) -> Path:
     """org_path が存在しない時のフォールバック。
 
@@ -48,18 +68,21 @@ def _fallback_org_path(org_path: Path, root: Path) -> Path:
     if org_path.exists():
         return org_path
 
-    repo_root = _repo_root()
+    project_roots = _discover_project_roots(root)
 
-    candidates: list[Path] = [
-        # docker image上のrepo
-        Path("/app/examples/org.toml"),
-        repo_root / "examples/org.toml",
-        # root/workdir側
-        root / "examples/org.toml",
-        # 引数が相対パスなら repo_root 配下を優先的に試す
-        (repo_root / org_path) if not org_path.is_absolute() else org_path,
-        Path("examples/org.toml"),
-    ]
+    candidates: list[Path] = []
+    # まず固定パス（docker image上のrepo）
+    candidates.append(Path("/app/examples/org.toml"))
+    # 次に見つかった project roots
+    for pr in project_roots:
+        candidates.append(pr / "examples/org.toml")
+        if not org_path.is_absolute():
+            candidates.append(pr / org_path)
+
+    # root/workdir側
+    candidates.append(root / "examples/org.toml")
+    candidates.append(Path("examples/org.toml"))
+
     for c in candidates:
         if c.exists():
             return c
@@ -346,6 +369,15 @@ class UsagiTui(App):
             org_path,
             self.root / ".usagi/status.json",
         )
+
+        # 観測用: org解決先をeventsに1回だけ書く
+        if not hasattr(self, "_org_path_logged"):
+            self._org_path_logged = True  # type: ignore[attr-defined]
+            events = self.root / ".usagi/events.log"
+            events.parent.mkdir(parents=True, exist_ok=True)
+            ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            with events.open("a", encoding="utf-8") as f:
+                f.write(f"[{ts}] tui: org_path={org_path}\n")
         self.query_one(_SecretaryChatBox).update_text(self.root)
         self.query_one(_InputsBox).update_text(
             self.root / "inputs",
