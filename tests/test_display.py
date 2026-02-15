@@ -1,5 +1,6 @@
+from usagi.org import ROLE_BOSS, AgentDef
+
 from usagi.display import default_emoji_for_role, display_name
-from usagi.org import AgentDef, ROLE_BOSS
 
 
 def test_default_emoji() -> None:
