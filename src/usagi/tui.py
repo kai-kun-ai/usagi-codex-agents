@@ -18,7 +18,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
-from textual.widgets import Button, Footer, Header, Input, Static
+from textual.widgets import Button, Footer, Header, Input, ListItem, ListView, Static
 
 from usagi.autopilot import clear_stop, request_stop, stop_requested
 from usagi.boss_inbox import BossInput, write_boss_input
@@ -108,16 +108,40 @@ class _EventsBox(Static):
         self.update("\n".join(tail) if tail else "(no events yet)")
 
 
-class _InputsBox(Static):
-    def update_text(
-        self,
-        inputs_dir: Path,
-        state_path: Path,
-        max_items: int = 12,
-    ) -> None:
+class _InputsBox(ListView):
+    """inputs一覧（選択/削除対応）。
+
+    ListViewはキー入力を自前で消費するため、削除キーはここで拾ってAppへ委譲する。
+    """
+
+    def __init__(self, *, inputs_dir: Path, state_path: Path, max_items: int = 50, **kwargs):
+        super().__init__(**kwargs)
+        self.inputs_dir = inputs_dir
+        self.state_path = state_path
+        self.max_items = max_items
+        self._paths: list[Path] = []
+
+    @property
+    def selected_path(self) -> Path | None:
+        if self.index is None:
+            return None
+        if self.index < 0 or self.index >= len(self._paths):
+            return None
+        return self._paths[self.index]
+
+    def on_key(self, event) -> None:  # type: ignore[override]
+        if event.key in {"d", "delete"}:
+            try:
+                self.app.action_delete_input()  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            event.stop()
+
+    def refresh_items(self) -> None:
+        inputs_dir = self.inputs_dir
+        state_path = self.state_path
         inputs_dir.mkdir(parents=True, exist_ok=True)
 
-        # state.json: {"/abs/or/rel/path.md": mtime_ns}
         state: dict[str, int] = {}
         if state_path.exists():
             try:
@@ -134,28 +158,36 @@ class _InputsBox(Static):
             items.append((p, int(st.st_mtime_ns)))
 
         items.sort(key=lambda x: x[1], reverse=True)
+        items = items[: self.max_items]
 
-        lines: list[str] = []
+        self.clear()
+        self._paths = []
+
         if not items:
-            self.update("(no inputs)")
+            self.append(ListItem(Static("(no inputs)")))
+            self._paths = []
             return
 
         pending = 0
-        for p, mtime_ns in items[:max_items]:
+        for p, mtime_ns in items:
             last = int(state.get(str(p), 0))
             done = last >= mtime_ns
             if not done:
                 pending += 1
             mark = "✅" if done else "🕒"
-            # Path.is_relative_to は3.9+ だが、互換のため例外で対応
             try:
                 name = str(p.relative_to(inputs_dir))
             except Exception:
                 name = p.name
-            lines.append(f"{mark} {name}")
+            self.append(ListItem(Static(f"{mark} {name}")))
+            self._paths.append(p)
 
-        header = f"inputs (pending={pending})"
-        self.update(header + "\n\n" + "\n".join(lines))
+        # border_titleを更新（composeで付ける前提）
+        self.border_title = f"入力 (pending={pending})"
+
+        # 初期選択（削除キーが効くように）
+        if self.index is None and self._paths:
+            self.index = 0
 
 
 class _BossChatBox(Static):
@@ -232,8 +264,10 @@ class UsagiTui(App):
     #events { height: 1fr; border: solid green; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
-    #inputs { height: auto; border: solid yellow; padding: 0 1; }
-    #secretary_chat { height: 12; border: solid magenta; padding: 0 1; }
+    #inputs { height: 12; border: solid yellow; padding: 0 1; }
+    #secretary_scroll { height: 12; border: solid magenta; padding: 0 1; }
+    #secretary_chat { height: auto; }
+    #secretary_controls { height: auto; }
     #org_scroll { height: 1fr; border: solid blue; padding: 0 1; }
     #org { height: auto; }
 
@@ -243,14 +277,21 @@ class UsagiTui(App):
         height: 3;
     }
 
-    #secretary_send, #secretary_to_input {
+    #secretary_to_input {
         background: $accent;
         color: $text;
+        width: 18;
+    }
+
+    #mode:focus {
+        border: heavy yellow;
+        background: $boost;
     }
     """
 
     BINDINGS = [
         ("ctrl+s", "toggle", "Start/Stop"),
+        ("d", "delete_input", "Delete selected input"),
         ("q", "quit", "Quit"),
     ]
 
@@ -282,17 +323,26 @@ class UsagiTui(App):
                     mode_btn.border_title = "mode"
                     yield mode_btn
 
-                    chat = _SecretaryChatBox(id="secretary_chat")
-                    chat.border_title = "秘書(🐻)との対話"
-                    yield chat
-                    yield Input(
-                        placeholder="ここに日本語で入力 → Enter で送信（例: 次のタスクを整理して）",
-                        id="secretary_input",
-                    )
-                    yield Button("秘書へ送信", id="secretary_send")
-                    yield Button("社長に渡す(input.md化)", id="secretary_to_input")
+                    with VerticalScroll(id="secretary_scroll"):
+                        chat = _SecretaryChatBox(id="secretary_chat")
+                        chat.border_title = "秘書(🐻)との対話"
+                        yield chat
 
-                    inputs_box = _InputsBox(id="inputs")
+                    with Horizontal(id="secretary_controls"):
+                        yield Input(
+                            placeholder=(
+                                "ここに日本語で入力 → Enter で送信"
+                                "（例: 次のタスクを整理して）"
+                            ),
+                            id="secretary_input",
+                        )
+                        yield Button("社長に渡す", id="secretary_to_input")
+
+                    inputs_box = _InputsBox(
+                        inputs_dir=self.root / "inputs",
+                        state_path=self.root / ".usagi/state.json",
+                        id="inputs",
+                    )
                     inputs_box.border_title = "入力"
                     yield inputs_box
                 with Container(id="right"):
@@ -317,6 +367,8 @@ class UsagiTui(App):
         if self.demo:
             self._ensure_demo_thread()
         self.set_interval(0.5, self._refresh)
+        # 初回描画直後に内容を埋める
+        self._refresh()
 
     def _ensure_watch_thread(self) -> None:
         if self._watch_thread is not None and self._watch_thread.is_alive():
@@ -379,11 +431,14 @@ class UsagiTui(App):
             with events.open("a", encoding="utf-8") as f:
                 f.write(f"[{ts}] tui: org_path={org_path}\n")
         self.query_one(_SecretaryChatBox).update_text(self.root)
-        self.query_one(_InputsBox).update_text(
-            self.root / "inputs",
-            self.root / ".usagi/state.json",
-        )
+        self.query_one(_InputsBox).refresh_items()
         self.query_one(_EventsBox).update_text(self.root / ".usagi/events.log")
+
+        # secretary autoscroll
+        try:
+            self.query_one("#secretary_scroll", VerticalScroll).scroll_end(animate=False)
+        except Exception:
+            pass
 
         # RUNNINGならwatchスレッドを維持（demoのときはdemoスレッド）
         if not stop_requested(self.root):
@@ -398,17 +453,58 @@ class UsagiTui(App):
         else:
             request_stop(self.root)
 
+    def action_delete_input(self) -> None:
+        """選択中inputを .usagi/trash/ に移動。"""
+        lv = self.query_one(_InputsBox)
+        p = lv.selected_path
+        if p is None or not p.exists():
+            return
+
+        trash_dir = self.root / ".usagi/trash/inputs"
+        trash_dir.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y%m%d-%H%M%S")
+        dst = trash_dir / f"{ts}-{p.name}"
+        try:
+            p.rename(dst)
+        except Exception:
+            return
+
+        events = self.root / ".usagi/events.log"
+        events.parent.mkdir(parents=True, exist_ok=True)
+        tss = time.strftime("%Y-%m-%d %H:%M:%S")
+        with events.open("a", encoding="utf-8") as f:
+            f.write(f"[{tss}] inputs: trashed {dst.name}\n")
+
+        lv.refresh_items()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "mode":
             self.action_toggle()
-        if event.button.id == "secretary_send":
-            self._send_secretary_message()
         if event.button.id == "secretary_to_input":
             self._secretary_to_input()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "secretary_input":
             self._send_secretary_message()
+
+    def on_key(self, event) -> None:  # type: ignore[override]
+        # inputs一覧にフォーカスがある時だけ d/delete を削除として扱う
+        if event.key not in {"d", "delete"}:
+            return
+        focused = getattr(self, "focused", None)
+        if not focused:
+            return
+        if getattr(focused, "id", None) == "inputs":
+            self.action_delete_input()
+            event.stop()
+            return
+        # 子要素にフォーカスがある場合も拾う
+        try:
+            if focused.has_ancestor("#inputs"):
+                self.action_delete_input()
+                event.stop()
+        except Exception:
+            return
 
     def _send_secretary_message(self) -> None:
         inp = self.query_one("#secretary_input", Input)
