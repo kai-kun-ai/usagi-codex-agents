@@ -148,6 +148,28 @@ async def test_tui_secretary_chat_input(work_root: Path, org_path: Path) -> None
 
 
 @pytest.mark.asyncio()
+async def test_tui_secretary_to_input_shortcut(work_root: Path, org_path: Path) -> None:
+    """端末幅が狭くても操作できるよう、ショートカットでも起票できる。"""
+    app = UsagiTui(
+        root=work_root,
+        org_path=org_path,
+        model="codex",
+        offline=True,
+        demo=False,
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+b")
+        await pilot.pause(0.6)
+
+        placed = list((work_root / "inputs" / "secretary").glob("*.md"))
+        assert placed, "expected inputs/secretary/*.md to be created"
+
+        inbox = list((work_root / ".usagi" / "inbox").glob("*-secretary.txt"))
+        assert inbox, "expected .usagi/inbox/*-secretary.txt to be created"
+
+
+@pytest.mark.asyncio()
 async def test_tui_mode_toggle_button(work_root: Path, org_path: Path) -> None:
     """modeボタンで .usagi/STOP がトグルされる。"""
     app = UsagiTui(
