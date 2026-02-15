@@ -11,8 +11,8 @@ require_human_on = ["discord", "tokens", "security"]
 [vote]
 enabled = true
 threshold = "2of3"
-# 社長は投票に入らない。社長人格(3人)で多数決する。
-voters = ["boss_cons", "boss_chal", "boss_rel"]
+# 社長は投票に入らない。取締役会(3人)で多数決する。
+voters = ["board_cons", "board_chal", "board_rel"]
 ask_human_on_tie = true
 
 [system]
