@@ -306,7 +306,7 @@ class _SecretaryChatBox(Static):
 
 
 class _OrgBox(Static):
-    def update_text(self, org_path: Path, status_path: Path) -> None:
+    def update_text(self, org_path: Path, status_path: Path, *, blink: bool = False) -> None:
         if not org_path.exists():
             self.update("(no org.toml)")
             return
@@ -324,9 +324,20 @@ class _OrgBox(Static):
         def line_for(agent_id: str, name: str) -> str:
             a = st.agents.get(agent_id)
             if not a:
-                return f"- {name}: unknown"
+                return f"- ⚪ {name}: unknown"
+
+            state = a.state
             task = f" {a.task}" if a.task else ""
-            return f"- {name}: {a.state}{task}"
+
+            # signal-like indicator
+            if state == "working":
+                dot = "🟢" if blink else "  "
+            elif state in {"error", "failed"}:
+                dot = "🔴"
+            else:
+                dot = "⚪"
+
+            return f"- {dot} {name}: {state}{task}"
 
         lines: list[str] = []
 
@@ -546,9 +557,14 @@ class UsagiTui(App):
             pass
 
         org_path = _fallback_org_path(self.org_path, self.root)
+        # blink phase toggles every refresh (0.5s)
+        blink = bool(getattr(self, "_blink", False))
+        self._blink = not blink  # type: ignore[attr-defined]
+
         self.query_one(_OrgBox).update_text(
             org_path,
             self.root / ".usagi/status.json",
+            blink=blink,
         )
 
         # 観測用: org解決先をeventsに1回だけ書く
