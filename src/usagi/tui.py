@@ -339,7 +339,7 @@ class UsagiTui(App):
     #left_scroll { height: 1fr; }
 
     /* NOTE: events は下部に固定高で確保する（入力欄が縦に伸びても重ならないように） */
-    #events { height: 8; border: solid green; padding: 0 1; }
+    #events { height: 6; border: solid green; padding: 0 1; }
     #focus_status { height: 3; border: solid cyan; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
