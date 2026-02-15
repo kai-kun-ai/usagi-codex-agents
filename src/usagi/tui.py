@@ -30,6 +30,27 @@ from usagi.state import load_status
 from usagi.watch import watch_inputs
 
 
+def _fallback_org_path(org_path: Path, root: Path) -> Path:
+    """org_path が存在しない時のフォールバック。
+
+    - make demo は /app に repo がある前提なので /app/examples/org.toml を試す
+    - root 配下 examples/org.toml も試す
+    """
+
+    if org_path.exists():
+        return org_path
+
+    candidates = [
+        Path("/app/examples/org.toml"),
+        root / "examples/org.toml",
+        Path("examples/org.toml"),
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return org_path
+
+
 def _mode_label(root: Path) -> str:
     return "STOPPED" if stop_requested(root) else "RUNNING"
 
@@ -179,8 +200,9 @@ class UsagiTui(App):
     #org { height: auto; }
 
     #secretary_input {
-        border: solid white;
+        border: heavy white;
         background: $surface;
+        height: 3;
     }
 
     #secretary_send, #secretary_to_input {
@@ -225,7 +247,10 @@ class UsagiTui(App):
                     chat = _SecretaryChatBox(id="secretary_chat")
                     chat.border_title = "秘書(🐻)との対話"
                     yield chat
-                    yield Input(placeholder="秘書に伝える…", id="secretary_input")
+                    yield Input(
+                        placeholder="ここに日本語で入力 → Enter で送信（例: 次のタスクを整理して）",
+                        id="secretary_input",
+                    )
                     yield Button("秘書へ送信", id="secretary_send")
                     yield Button("社長に渡す(input.md化)", id="secretary_to_input")
 
@@ -301,8 +326,9 @@ class UsagiTui(App):
         # mode button
         self.query_one("#mode", Button).label = _mode_label(self.root)
 
+        org_path = _fallback_org_path(self.org_path, self.root)
         self.query_one(_OrgBox).update_text(
-            self.org_path,
+            org_path,
             self.root / ".usagi/status.json",
         )
         self.query_one(_SecretaryChatBox).update_text(self.root)

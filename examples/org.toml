@@ -21,6 +21,18 @@ reports_to = "boss"
 personality = "personalities/ghost_boss.md"
 memory = "memories/ghost_boss.md"
 
+# 秘書エージェント（社長と直接会話せず、秘書を介して input.md を作る想定）
+[[agents]]
+id = "secretary"
+name = "秘書クマ"
+emoji = "🐻"
+role = "worker"
+model = "codex"
+profile = "account_a"
+reports_to = "boss"
+personality = "personalities/secretary.md"
+memory = "memories/secretary.md"
+
 [[agents]]
 id = "dev_mgr"
 name = "開発部長キツネ"
