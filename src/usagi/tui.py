@@ -349,7 +349,7 @@ class UsagiTui(App):
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
     #inputs { height: 12; border: solid yellow; padding: 0 1; }
-    #secretary_scroll { height: 18; border: solid magenta; padding: 0 1; }
+    #secretary_scroll { height: 1fr; border: solid magenta; padding: 0 1; }
     #secretary_chat { height: auto; }
 
     /* NOTE:
