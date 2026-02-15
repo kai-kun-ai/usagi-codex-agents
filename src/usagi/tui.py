@@ -141,7 +141,7 @@ def _focused_window_label(focused: object | None) -> str:
 
 # NOTE: 状態表示は組織図に統合したため、専用ウィンドウは廃止。
 class _EventsBox(Static):
-    def update_text(self, log_path: Path, max_lines: int = 15) -> None:
+    def update_text(self, log_path: Path, max_lines: int = 21) -> None:
         if not log_path.exists():
             self.update("(no events yet)")
             return
@@ -209,8 +209,9 @@ class _InputsBox(ListView):
         items.sort(key=lambda x: x[1], reverse=True)
         items = items[: self.max_items]
 
-        # 既存選択を保持（再描画時にカーソルが飛ぶのを防ぐ）
+        # 既存選択を保持（再描画時にカーソル/ハイライトが飛ぶのを防ぐ）
         prev_selected = self.selected_path
+        prev_index = self.index
 
         pending = 0
         signature: list[tuple[str, bool]] = []
@@ -259,6 +260,9 @@ class _InputsBox(ListView):
         # 選択を復元（同じファイルが残っている場合）
         if prev_selected is not None and prev_selected in self._paths:
             self.index = self._paths.index(prev_selected)
+        elif prev_index is not None and 0 <= prev_index < len(self._paths):
+            # 同じindex位置を維持（新規追加などで行が増えても、ハイライトのズレを抑える）
+            self.index = prev_index
         elif self.index is None and self._paths:
             # 初期選択（削除キーが効くように）
             self.index = 0
@@ -334,18 +338,18 @@ class _OrgBox(Static):
 class UsagiTui(App):
     CSS = """
     #main { height: 1fr; }
-    #top { height: 1fr; }
+    #top { height: 1fr; overflow: hidden; }
     #left, #right { width: 1fr; height: 1fr; }
     #left_scroll { height: 1fr; }
 
     /* NOTE: events は下部に固定高で確保する（入力欄が縦に伸びても重ならないように） */
-    #events { height: 6; border: solid green; padding: 0 1; }
+    #events { height: 9; border: solid green; padding: 0 1; }
     /* focus_status panel removed: focus is shown in the bottom bar */
     #focus_bar { height: 1; background: $panel; color: $text-muted; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
     #inputs { height: 12; border: solid yellow; padding: 0 1; }
-    #secretary_scroll { height: 18; border: solid magenta; padding: 0 1; }
+    #secretary_scroll { height: 1fr; border: solid magenta; padding: 0 1; }
     #secretary_chat { height: auto; }
 
     /* NOTE:
@@ -364,7 +368,7 @@ class UsagiTui(App):
         background: $surface;
         height: 3;
         width: 1fr;
-        max-height: 10;
+        max-height: 6;
     }
 
     /* secretary_to_input button removed: Ctrl+B shortcut only */
@@ -413,11 +417,7 @@ class UsagiTui(App):
 
                         # NOTE: 左ペインの中身はスクロールさせ、下部events領域と重ならないようにする
                         with VerticalScroll(id="left_scroll"):
-                            with VerticalScroll(id="secretary_scroll"):
-                                chat = _SecretaryChatBox(id="secretary_chat")
-                                chat.border_title = "秘書(🐻)との対話"
-                                yield chat
-
+                            # NOTE: 入力欄が縦に大きくなっても、eventsと重ならないよう先に配置する
                             with Container(id="secretary_controls"):
                                 yield Input(
                                     placeholder=(
@@ -428,6 +428,11 @@ class UsagiTui(App):
                                 )
                                 # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
                                 yield Static("Ctrl+B: 社長に渡す", id="secretary_to_hint")
+
+                            with VerticalScroll(id="secretary_scroll"):
+                                chat = _SecretaryChatBox(id="secretary_chat")
+                                chat.border_title = "秘書(🐻)との対話"
+                                yield chat
 
                             inputs_box = _InputsBox(
                                 inputs_dir=self.root / "inputs",
