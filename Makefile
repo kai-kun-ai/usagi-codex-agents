@@ -10,3 +10,10 @@ test: lint
 d-test:
 	docker build -t usagi-dev .
 	docker run --rm usagi-dev make test
+
+# Dockerコンテナに入って公式CLIでログイン等を行う
+d-shell:
+	docker build -t usagi-dev .
+	docker run --rm -it \
+	  -v "$$PWD":/app \
+	  usagi-dev bash

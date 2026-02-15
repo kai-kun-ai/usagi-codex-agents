@@ -99,7 +99,17 @@ docker run --rm -it \
 # claude setup-token
 ```
 
-※ CLIの実体（`codex` / `claude`）はDockerイメージにインストールしておく必要があります。
+Dockerイメージには公式手順で **Codex CLI** と **Claude Code** を同梱しています。
+
+- Codex CLI: https://developers.openai.com/codex/cli
+- Claude Code: https://code.claude.com/docs/ja/setup
+
+```bash
+make d-shell
+# コンテナ内で
+codex   # 初回はChatGPTアカウント or APIキーでログイン
+claude  # 初回セットアップ（setup-token等）
+```
 
 ---
 
