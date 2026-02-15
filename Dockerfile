@@ -4,7 +4,18 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # System deps
-RUN apt-get update && apt-get install -y --no-install-recommends git bash && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  git bash curl ca-certificates \
+  nodejs npm \
+  && rm -rf /var/lib/apt/lists/*
+
+# --- Official CLIs ---
+# Codex CLI (official install): npm i -g @openai/codex
+RUN npm i -g @openai/codex
+
+# Claude Code (official install): curl -fsSL https://claude.ai/install.sh | bash
+# NOTE: This runs the vendor install script during image build.
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Install deps first (cache)
 COPY requirements.txt ./
