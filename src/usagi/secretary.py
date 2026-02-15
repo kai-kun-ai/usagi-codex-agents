@@ -72,8 +72,20 @@ class SecretaryAgent:
 
     def _llm_reply(self) -> str:
         from usagi.llm_backend import LLM, LLMConfig
+        from usagi.prompt_compact import compact_for_prompt
 
         llm = LLM(LLMConfig(backend="codex_cli", model="codex"))
+
+        # 参考資料: 社長メモリ（outputs/report.md）
+        report_path = self.config.root / "outputs" / "report.md"
+        report_md = ""
+        if report_path.exists():
+            report_md = report_path.read_text(encoding="utf-8")
+            report_md = compact_for_prompt(report_md, stage="secretary_report", max_chars=2500)
+
+        # 参考資料: 直近input（report.md の最新状況 input から推定）
+        last_input = _read_last_input_from_report(self.config.root, report_path)
+        last_input = compact_for_prompt(last_input, stage="secretary_last_input", max_chars=1800)
 
         # 直近の対話をプロンプトに含める
         context = "\n".join(
@@ -82,8 +94,12 @@ class SecretaryAgent:
         )
         prompt = (
             f"{SECRETARY_SYSTEM_PROMPT}\n\n"
+            "## 参考資料（社長メモリ: outputs/report.md）\n"
+            f"{report_md}\n\n"
+            "## 参考資料（直近input）\n"
+            f"{last_input}\n\n"
             f"## これまでの対話\n{context}\n\n"
-            "秘書として短く返答してください。"
+            "上の参考資料も踏まえて、秘書として短く返答してください。"
         )
 
         reply = llm.generate(prompt).strip()
@@ -108,10 +124,25 @@ class SecretaryAgent:
 
     def _llm_summarize(self, dialog_text: str) -> str:
         from usagi.llm_backend import LLM, LLMConfig
+        from usagi.prompt_compact import compact_for_prompt
 
         llm = LLM(LLMConfig(backend="codex_cli", model="codex"))
+
+        report_path = self.config.root / "outputs" / "report.md"
+        report_md = ""
+        if report_path.exists():
+            report_md = report_path.read_text(encoding="utf-8")
+            report_md = compact_for_prompt(report_md, stage="secretary_report_for_summary", max_chars=2500)
+
+        last_input = _read_last_input_from_report(self.config.root, report_path)
+        last_input = compact_for_prompt(last_input, stage="secretary_last_input_for_summary", max_chars=1800)
+
         prompt = (
             f"{SECRETARY_SYSTEM_PROMPT}\n\n"
+            "## 参考資料（社長メモリ: outputs/report.md）\n"
+            f"{report_md}\n\n"
+            "## 参考資料（直近input）\n"
+            f"{last_input}\n\n"
             "## タスク\n"
             "以下の対話ログから、社長（AIエージェント）への依頼内容を整理してください。\n"
             "出力フォーマット:\n"
@@ -138,6 +169,32 @@ class SecretaryAgent:
         self._fallback_idx += 1
         self._history.append({"role": "assistant", "content": reply})
         return reply
+
+
+def _read_last_input_from_report(root: Path, report_path: Path) -> str:
+    """report.md の「最新状況 input」を見て直近inputファイルを読みに行く（best-effort）。"""
+
+    try:
+        if not report_path.exists():
+            return ""
+        lines = report_path.read_text(encoding="utf-8").splitlines()
+        input_rel = ""
+        for line in lines:
+            if line.strip().startswith("- input: "):
+                input_rel = line.split(":", 1)[1].strip()
+        if not input_rel:
+            return ""
+        p = (root / input_rel).resolve()
+        if not p.exists():
+            # inputs 配下の相対パスとして扱う
+            p2 = (root / "inputs" / input_rel).resolve()
+            if p2.exists():
+                p = p2
+        if not p.exists():
+            return ""
+        return p.read_text(encoding="utf-8")
+    except Exception:
+        return ""
 
 
 def secretary_log_path(root: Path) -> Path:
