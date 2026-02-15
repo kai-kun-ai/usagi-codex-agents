@@ -7,19 +7,44 @@ emoji = "🐰"
 role = "boss"
 model = "codex"
 reports_to = ""
-can_command = ["ghost", "dev_mgr", "qa_mgr", "ops_mgr"]
+can_command = ["board", "dev_mgr", "qa_mgr", "ops_mgr"]
 personality = "personalities/boss.md"
 memory = "memories/boss.md"
 
 [[agents]]
-id = "ghost"
-name = "ゴースト社長"
-emoji = "👻"
+id = "board"
+name = "取締役会"
+emoji = "🐰"
 role = "ghost_boss"
 model = "codex"
 reports_to = "boss"
 personality = "personalities/ghost_boss.md"
 memory = "memories/ghost_boss.md"
+
+# 取締役会（投票用）: bossを除いて3人格
+[[agents]]
+id = "board_cons"
+name = "取締役（保守派）"
+emoji = "🐰"
+role = "ghost_boss"
+model = "codex"
+reports_to = "boss"
+
+[[agents]]
+id = "board_chal"
+name = "取締役（挑戦派）"
+emoji = "🐰"
+role = "ghost_boss"
+model = "codex"
+reports_to = "boss"
+
+[[agents]]
+id = "board_rel"
+name = "取締役（関係重視）"
+emoji = "🐰"
+role = "ghost_boss"
+model = "codex"
+reports_to = "boss"
 
 # 秘書エージェント（社長と直接会話せず、秘書を介して input.md を作る想定）
 [[agents]]
@@ -40,34 +65,53 @@ emoji = "🦊"
 role = "manager"
 model = "codex"
 reports_to = "boss"
-can_command = ["dev_lead"]
+can_command = ["dev_impl_lead", "dev_rev_lead"]
 
+# 開発: 実装課
 [[agents]]
-id = "dev_lead"
-name = "開発課長フクロウ"
+id = "dev_impl_lead"
+name = "開発実装課長フクロウ"
 emoji = "🦉"
 role = "lead"
 model = "codex"
 reports_to = "dev_mgr"
-can_command = ["w1", "w2"]
+can_command = ["dev_w1", "dev_w2"]
 
 [[agents]]
-id = "w1"
+id = "dev_w1"
 name = "実装リスA"
 emoji = "🐿️"
 role = "worker"
 model = "codex"
 profile = "account_a"
-reports_to = "dev_lead"
+reports_to = "dev_impl_lead"
 
 [[agents]]
-id = "w2"
+id = "dev_w2"
 name = "実装リスB"
 emoji = "🐿️"
 role = "worker"
 model = "codex"
 profile = "account_b"
-reports_to = "dev_lead"
+reports_to = "dev_impl_lead"
+
+# 開発: レビュー課
+[[agents]]
+id = "dev_rev_lead"
+name = "開発レビュー課長フクロウ"
+emoji = "🦉"
+role = "lead"
+model = "codex"
+reports_to = "dev_mgr"
+can_command = ["dev_rev1"]
+
+[[agents]]
+id = "dev_rev1"
+name = "レビューウサギ"
+emoji = "🐰"
+role = "worker"
+model = "codex"
+reports_to = "dev_rev_lead"
 
 [[agents]]
 id = "qa_mgr"
@@ -76,24 +120,52 @@ emoji = "🦝"
 role = "manager"
 model = "codex"
 reports_to = "boss"
-can_command = ["qa_lead"]
+can_command = ["qa_lint_lead", "qa_perf_lead"]
 
+# 品質: lint/静的品質
 [[agents]]
-id = "qa_lead"
-name = "品質課長フクロウ"
+id = "qa_lint_lead"
+name = "品質lint課長フクロウ"
 emoji = "🦉"
 role = "lead"
 model = "codex"
 reports_to = "qa_mgr"
-can_command = ["rev1"]
+can_command = ["qa_lint1"]
 
+[[agents]]
+id = "qa_lint1"
+name = "lint監査フクロウ"
+emoji = "🦉"
+role = "worker"
+model = "codex"
+reports_to = "qa_lint_lead"
+
+# 品質: 速度/性能
+[[agents]]
+id = "qa_perf_lead"
+name = "品質性能課長ハヤブサ"
+emoji = "🦅"
+role = "lead"
+model = "codex"
+reports_to = "qa_mgr"
+can_command = ["qa_perf1"]
+
+[[agents]]
+id = "qa_perf1"
+name = "速度監査チーター"
+emoji = "🐆"
+role = "worker"
+model = "codex"
+reports_to = "qa_perf_lead"
+
+# 互換: reviewerロールのサンプル（過去互換）
 [[agents]]
 id = "rev1"
 name = "監査フクロウ"
 emoji = "🦉"
 role = "reviewer"
 model = "codex"
-reports_to = "qa_lead"
+reports_to = "qa_lint_lead"
 
 # 第2部門サンプル（運用/自動化）
 [[agents]]
@@ -103,20 +175,22 @@ emoji = "🐺"
 role = "manager"
 model = "codex"
 reports_to = "boss"
-can_command = ["ops1", "ops2"]
+can_command = ["ops_maint_lead"]
+
+# 運用: 長期ソース運用レビュー
+[[agents]]
+id = "ops_maint_lead"
+name = "長期運用課長カメ"
+emoji = "🐢"
+role = "lead"
+model = "codex"
+reports_to = "ops_mgr"
+can_command = ["ops_maint1"]
 
 [[agents]]
-id = "ops1"
-name = "運用イヌA"
+id = "ops_maint1"
+name = "保守レビューイヌ"
 emoji = "🐶"
 role = "worker"
 model = "codex"
-reports_to = "ops_mgr"
-
-[[agents]]
-id = "ops2"
-name = "運用イヌB"
-emoji = "🐶"
-role = "worker"
-model = "codex"
-reports_to = "ops_mgr"
+reports_to = "ops_maint_lead"

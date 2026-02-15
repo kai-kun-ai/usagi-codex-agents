@@ -78,7 +78,7 @@ claude
 - 環境によっては `claude setup-token` の運用になります。
 - 成功するとログイン状態が `/root/.claude` に保存されます（ホスト側のプロファイルへ永続化）。
 
-## 6. usagi を起動して動作確認
+## 6. usagi を起動して動作確認（オフライン→オンライン）
 
 ### 6.0 保存場所（`WORKDIR` とログインセッション）
 
@@ -139,21 +139,38 @@ mkdir -p inputs
 cp samples/hands-on/specs/hello.md inputs/hello.md
 ```
 
-### 6.3 オンライン（API/CLI）で動かす
+### 6.3 オンライン（Codexログイン前提）で動かす
 
-OFFLINEを外して実行してください。
+OFFLINEを外して実行してください（Codexログインが完了していること）。
 
 ```bash
 make run WORKDIR=$PWD PROFILE=alice
 ```
 
-またはコマンド単体（コンテナ内で実行したい場合）:
+### 6.4 実運用テスト（ミニCLI: topもどき をゼロから作る）
+
+このリポジトリを「本当に使う」最終テストとして、ミニCLIツール（topもどき）を作らせます。
+
+1) 指示書を inputs に投入:
 
 ```bash
-make d-shell WORKDIR=$PWD PROFILE=alice
-# コンテナ内で
-usagi autopilot-start
+mkdir -p inputs
+cp specs/hands-on-minitop.md inputs/minitop.md
 ```
+
+2) 生成物を確認（しばらく待つ）:
+
+```bash
+ls -la outputs
+sed -n '1,120p' outputs/minitop.report.md
+```
+
+期待:
+- レポートが出力される
+- 生成された `minitop` プロジェクトのファイル（README / テスト / 実装）が作業ディレクトリ配下に作られる
+
+補足:
+- 生成物の場所は `work/` 配下（実行ごとにジョブIDのディレクトリが作られる）です。
 
 ## 7. STOP（停止）
 
