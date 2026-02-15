@@ -35,7 +35,55 @@ class GitRepo:
     def ensure_repo(self) -> None:
         if (self.path / ".git").exists():
             return
-        self.run(["init"])
+        # default branch を main に揃える
+        self.run(["init", "-b", "main"])
+
+    def ensure_user(self) -> None:
+        # 署名不要。ローカル専用。
+        try:
+            self.run(["config", "user.email"])
+        except Exception:
+            self.run(["config", "user.email", "usagi@example.invalid"])
+        try:
+            self.run(["config", "user.name"])
+        except Exception:
+            self.run(["config", "user.name", "usagi"])
+
+    def ensure_initial_commit(self) -> None:
+        """ブランチ作成/merge のため最低1コミットを保証する。"""
+
+        self.ensure_user()
+        proc = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=self.path,
+            text=True,
+            capture_output=True,
+        )
+        if proc.returncode == 0:
+            return
+        self.run(["commit", "--allow-empty", "-m", "init"])
+
+    def worktree_add(self, worktree_path: Path, branch: str) -> None:
+        worktree_path.parent.mkdir(parents=True, exist_ok=True)
+        if worktree_path.exists():
+            return
+        # branch が無いなら main から作る
+        if not self.branch_exists(branch):
+            self.run(["branch", branch, "main"])
+        self.run(["worktree", "add", str(worktree_path), branch])
+
+    def worktree_remove(self, worktree_path: Path) -> None:
+        if not worktree_path.exists():
+            return
+        self.run(["worktree", "remove", "--force", str(worktree_path)])
+
+    def merge_to_main_and_delete_branch(self, branch: str) -> None:
+        """main に merge し、作業ブランチを削除する。"""
+
+        self.ensure_user()
+        self.checkout("main")
+        self.run(["merge", "--no-edit", branch])
+        self.run(["branch", "-D", branch])
 
     def current_branch(self) -> str:
         return self.run(["rev-parse", "--abbrev-ref", "HEAD"])

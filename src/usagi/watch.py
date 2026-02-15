@@ -194,10 +194,11 @@ class WatchWorker:
         # プロジェクト名でサブディレクトリを分ける
         project = spec.project or "default"
         job_id = f"{int(time.time())}-{p.stem}"
-        workdir = self.work_root / project / job_id
+        project_dir = self.work_root / project
+        workdir = project_dir / "jobs" / job_id
         workdir.mkdir(parents=True, exist_ok=True)
 
-        # report出力用（outputs/<project>/<job_id>/...）
+        # report出力用
         self._current_workdir = workdir  # type: ignore[attr-defined]
 
         # announce + status
@@ -248,6 +249,7 @@ class WatchWorker:
                 runtime=runtime,
                 root=Path("."),
                 status_path=self.status_path,
+                repo_root=project_dir,
             )
             self._write_report(p, res.report)
             self._event("pipeline done")
