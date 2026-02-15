@@ -23,6 +23,7 @@ from textual.widgets import Button, Footer, Header, Input, Static
 from usagi.autopilot import clear_stop, request_stop, stop_requested
 from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.demo import DemoConfig, run_demo_forever
+from usagi.display import display_name
 from usagi.org import load_org
 from usagi.state import load_status
 from usagi.watch import watch_inputs
@@ -38,6 +39,7 @@ class _StatusBox(Static):
             lines.append("agents:")
             for a in st.agents.values():
                 task = f" {a.task}" if a.task else ""
+                # status.json は name しか持たないので、ここはそのまま表示
                 lines.append(f"- {a.name} ({a.agent_id}): {a.state}{task}")
         else:
             lines.append("(no status)")
@@ -144,7 +146,7 @@ class _OrgBox(Static):
             if not a:
                 return f"- {name} ({agent_id})"
             task = f" {a.task}" if a.task else ""
-            return f"- {name} ({agent_id}): {a.state}{task}"
+            return f"- {name}: {a.state}{task}"
 
         lines: list[str] = ["org chart", ""]
 
@@ -154,10 +156,10 @@ class _OrgBox(Static):
             # children
             children = [a for a in org.agents if a.reports_to == agent_id]
             for c in children:
-                walk(c.id, c.name, indent + 1)
+                walk(c.id, display_name(c), indent + 1)
 
         for r in roots:
-            walk(r.id, r.name, 0)
+            walk(r.id, display_name(r), 0)
 
         self.update("\n".join(lines))
 
