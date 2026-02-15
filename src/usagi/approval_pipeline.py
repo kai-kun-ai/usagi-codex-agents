@@ -28,6 +28,7 @@ from usagi.prompt_compact import compact_for_prompt
 from usagi.git_ops import team_branch
 from usagi.org import AgentDef, Organization
 from usagi.report import render_report
+from usagi.report_state import update_boss_report
 from usagi.runtime import RuntimeMode
 from usagi.secretary import place_input_for_boss
 from usagi.spec import UsagiSpec
@@ -58,6 +59,9 @@ def run_approval_pipeline(
     root: Path,
     status_path: Path | None = None,
     repo_root: Path | None = None,
+    outputs_dir: Path | None = None,
+    input_rel: str | None = None,
+    job_id: str | None = None,
 ) -> ApprovalRunResult:
     backend: LLMBackend = OfflineBackend() if offline else CodexCLIBackend()
     started = datetime.now(tz=UTC).isoformat()
@@ -102,6 +106,23 @@ def run_approval_pipeline(
     plan = boss_agent.run(user_prompt=_build_plan_prompt(spec), model=model, backend=backend)
     msgs.append(plan)
     write_artifact(workdir, "10-boss-plan.md", plan.content)
+
+    # Boss can update the report immediately after delegating/deciding.
+    if outputs_dir is not None:
+        try:
+            update_boss_report(
+                outputs_dir=outputs_dir,
+                spec=spec,
+                job_id=job_id or workdir.name,
+                workdir=workdir,
+                input_rel=input_rel or "(unknown)",
+                messages=msgs,
+                note="社長: 依頼を受領し、方針/計画を作成して部下へ委任しました。",
+            )
+        except Exception:
+            # best-effort
+            pass
+
     _set(boss.id, boss.name or boss.id, "idle", "")
 
     # worker: implement (差分)
