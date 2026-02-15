@@ -22,7 +22,9 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from usagi.announce import announce
-from usagi.pipeline import run_pipeline
+from usagi.approval_pipeline import run_approval_pipeline
+from usagi.org import load_org
+from usagi.runtime import load_runtime
 from usagi.spec import parse_spec_markdown
 from usagi.state import AgentStatus, load_status, save_status
 from usagi.validate import validate_spec
@@ -105,6 +107,8 @@ class WatchWorker:
         model: str,
         dry_run: bool,
         offline: bool,
+        org_path: Path | None,
+        runtime_path: Path | None,
         status_path: Path | None,
         event_log_path: Path | None = None,
     ) -> None:
@@ -116,6 +120,8 @@ class WatchWorker:
         self.dry_run = dry_run
         self.offline = offline
         self._stop = threading.Event()
+        self.org_path = org_path
+        self.runtime_path = runtime_path
         self.status_path = status_path
         self.event_log_path = event_log_path
 
@@ -185,14 +191,28 @@ class WatchWorker:
             def fail(self, _m: str | None = None) -> None:
                 return None
 
-        res = run_pipeline(
-            spec=spec,
-            workdir=workdir,
-            model=self.model,
-            dry_run=self.dry_run,
-            offline=self.offline,
-            ui=_Ui(),
-        )
+        if self.dry_run:
+            # 互換: dry-run は従来通り簡易レポート
+            res = run_approval_pipeline(
+                spec=spec,
+                workdir=workdir,
+                model=self.model,
+                offline=True,
+                org=load_org(self.org_path or Path("examples/org.toml")),
+                runtime=load_runtime(self.runtime_path),
+                root=Path("."),
+            )
+        else:
+            res = run_approval_pipeline(
+                spec=spec,
+                workdir=workdir,
+                model=self.model,
+                offline=self.offline,
+                org=load_org(self.org_path or Path("examples/org.toml")),
+                runtime=load_runtime(self.runtime_path),
+                root=Path("."),
+            )
+
         self._write_report(p, res.report)
 
         announce("社長うさぎ", f"終了: {p.name}")
@@ -249,6 +269,8 @@ def watch_inputs(
     dry_run: bool,
     offline: bool,
     recursive: bool,
+    org_path: Path | None = None,
+    runtime_path: Path | None = None,
     stop_file: Path | None = None,
     status_path: Path | None = None,
     event_log_path: Path | None = None,
@@ -265,6 +287,8 @@ def watch_inputs(
         model=model,
         dry_run=dry_run,
         offline=offline,
+        org_path=org_path,
+        runtime_path=runtime_path,
         status_path=status_path,
         event_log_path=event_log_path,
     )
