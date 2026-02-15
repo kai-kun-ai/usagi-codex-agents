@@ -66,6 +66,9 @@ def deliver_markdown(
 ) -> Path:
     """Deliver a Markdown message to recipient inbox.
 
+    Side effects:
+    - Writes an event line to `<root>/.usagi/events.log` for traceability.
+
     Returns:
         The created file path.
     """
@@ -89,6 +92,8 @@ def deliver_markdown(
         f"{body.strip()}\n"
     )
     p.write_text(content, encoding="utf-8")
+
+    _event(root, f"mailbox: delivered {from_agent} -> {to_agent}: {p.name}")
     return p
 
 
@@ -104,7 +109,19 @@ def archive_message(*, root: Path, agent_id: str, message_path: Path) -> Path:
     dst = mb.archive / message_path.name
     dst = _ensure_unique_path(dst)
     message_path.replace(dst)
+    _event(root, f"mailbox: archived {agent_id}: {dst.name}")
     return dst
+
+
+def _event(root: Path, msg: str) -> None:
+    try:
+        p = root / ".usagi" / "events.log"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        with p.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        return
 
 
 def _slug(s: str) -> str:

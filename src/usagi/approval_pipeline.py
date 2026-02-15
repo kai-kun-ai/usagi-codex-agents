@@ -32,6 +32,7 @@ from usagi.runtime import RuntimeMode
 from usagi.secretary import place_input_for_boss
 from usagi.spec import UsagiSpec
 from usagi.state import AgentStatus, load_status, save_status
+from usagi.mailbox import deliver_markdown
 from usagi.vote import Vote, decide_2of3, parse_decision
 
 
@@ -165,7 +166,8 @@ def run_approval_pipeline(
             "あなたは部長(manager)です。\n"
             "課長のレビュー結果を踏まえ、課ブランチを main にマージしてよいか判断してください。\n"
             "判断は 'MERGE_OK' / 'NEED_MORE_REVIEW' / 'ESCALATE_TO_BOSS' "
-            "のいずれかを必ず含めてください。"
+            "のいずれかを必ず含めてください。\n"
+            "また、判断内容は必ず社長へ報告する前提で、報告用に要点も簡潔に書いてください。"
         ),
     )
     plan_compact = compact_for_prompt(
@@ -189,6 +191,41 @@ def run_approval_pipeline(
     manager_decision = manager_agent.run(user_prompt=manager_prompt, model=model, backend=backend)
     msgs.append(manager_decision)
     write_artifact(workdir, "40-manager-decision.md", manager_decision.content)
+
+    # Manager must report upward to boss (md handoff).
+    report_body = compact_for_prompt(
+        (
+            f"project: {spec.project}\n\n"
+            "## 社長計画(要約)\n" + plan.content + "\n\n"
+            "## 課長レビュー(要約)\n" + lead_review.content + "\n\n"
+            "## 部長判断\n" + manager_decision.content + "\n"
+        ),
+        stage="manager_report_to_boss",
+        max_chars=runtime.compress.max_chars_vote,
+        enabled=runtime.compress.enabled,
+    )
+    deliver_markdown(
+        root=root,
+        from_agent=manager.id,
+        to_agent=boss.id,
+        title=f"部長報告: {spec.project or 'default'}",
+        body=report_body,
+    )
+    actions.append("mailbox: manager -> boss report")
+
+    # Dev manager should also notify QA/Ops managers (cross-department awareness).
+    if manager.id == "dev_mgr":
+        for peer in ["qa_mgr", "ops_mgr"]:
+            if org.find(peer) is not None:
+                deliver_markdown(
+                    root=root,
+                    from_agent=manager.id,
+                    to_agent=peer,
+                    title=f"共有: 開発判断 {spec.project or 'default'}",
+                    body=report_body,
+                )
+        actions.append("mailbox: dev_mgr -> qa_mgr/ops_mgr share")
+
     _set(manager.id, manager.name or manager.id, "idle", "")
 
     decision_text = manager_decision.content.upper()

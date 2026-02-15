@@ -258,7 +258,7 @@ class WatchWorker:
                 offline=True if self.dry_run else self.offline,
                 org=load_org(org_file),
                 runtime=runtime,
-                root=Path("."),
+                root=self.outputs_dir.parent,
                 status_path=self.status_path,
                 repo_root=project_dir,
             )
