@@ -263,8 +263,8 @@ class _InputsBox(ListView):
         elif prev_index is not None and 0 <= prev_index < len(self._paths):
             # 同じindex位置を維持（新規追加などで行が増えても、ハイライトのズレを抑える）
             self.index = prev_index
-        elif self.index is None and self._paths and self.has_focus:
-            # 初期選択（フォーカスがある時だけ）
+        elif self.index is None and self._paths:
+            # 初期選択（削除キーが効くように）
             self.index = 0
 
 
@@ -338,7 +338,7 @@ class _OrgBox(Static):
 class UsagiTui(App):
     CSS = """
     #main { height: 1fr; }
-    #top { height: 1fr; }
+    #top { height: 1fr; overflow: hidden; }
     #left, #right { width: 1fr; height: 1fr; }
     #left_scroll { height: 1fr; }
 
