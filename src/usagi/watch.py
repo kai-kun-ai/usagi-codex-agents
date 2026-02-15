@@ -226,68 +226,17 @@ class WatchWorker:
         runtime_file = self.runtime_path or Path("usagi.runtime.toml")
         runtime = load_runtime(runtime_file)
 
-        if self.dry_run or self.offline or not runtime.use_worker_container:
-            # dry-run/offline は従来通りローカル実行
-            res = run_approval_pipeline(
-                spec=spec,
-                workdir=workdir,
-                model=self.model,
-                offline=True if self.dry_run else self.offline,
-                org=load_org(org_file),
-                runtime=runtime,
-                root=Path("."),
-            )
-        else:
-            # workerコンテナに実行を委譲
-            from usagi.worker_container import run_approval_in_worker_container
-
-            repo = Path(".").resolve()
-            spec_abs = p.resolve()
-            work_abs = workdir.resolve()
-            org_abs = org_file.resolve()
-            rt_abs = runtime_file.resolve()
-            self._event(f"worker_container start: spec={p.name}")
-            self._event(f"  repo={repo}")
-            self._event(f"  workdir={work_abs}")
-            self._event(f"  model={self.model}")
-            self._event(f"  org={org_abs}")
-            self._event(f"  runtime={rt_abs}")
-            self._event(f"  image_build={runtime.worker_image_build}")
-
-            r = run_approval_in_worker_container(
-                repo_root=repo,
-                spec_path=spec_abs,
-                workdir=work_abs,
-                model=self.model,
-                offline=False,
-                org_path=org_abs,
-                runtime_path=rt_abs,
-                image_build=runtime.worker_image_build,
-            )
-            self._event(f"worker_container end (code={r.returncode})")
-
-            # stderr の最後数行だけログに出す（秘密を含みにくい部分）
-            if r.stderr:
-                tail = r.stderr.strip().splitlines()[-5:]
-                for line in tail:
-                    self._event(f"  stderr: {line}")
-
-            if r.returncode != 0:
-                report = (
-                    "# usagi watch: worker container failed\n\n"
-                    f"- exit_code: {r.returncode}\n"
-                )
-                if r.stderr:
-                    # レポートにも stderr 末尾を含める
-                    err_tail = r.stderr.strip().splitlines()[-10:]
-                    report += "\n## stderr (tail)\n\n```\n"
-                    report += "\n".join(err_tail)
-                    report += "\n```\n"
-                res = type("_Res", (), {"report": report})
-            else:
-                self._event(f"  stdout length={len(r.stdout)}")
-                res = type("_Res", (), {"report": r.stdout})
-
+        # 意思決定者(boss/manager/lead/取締役会)はホスト側で実行。
+        # workerの実装ステップだけコンテナに委譲（pipeline内部で判断）。
+        res = run_approval_pipeline(
+            spec=spec,
+            workdir=workdir,
+            model=self.model,
+            offline=True if self.dry_run else self.offline,
+            org=load_org(org_file),
+            runtime=runtime,
+            root=Path("."),
+        )
         self._write_report(p, res.report)
 
         announce("社長うさぎ", f"終了: {p.name}")

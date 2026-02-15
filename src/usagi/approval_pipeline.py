@@ -82,21 +82,18 @@ def run_approval_pipeline(
     msgs.append(plan)
 
     # worker: implement (差分)
-    worker_agent = _agent_for(
-        worker,
-        role="coder",
-        system_prompt=(
-            "あなたはワーカー(worker)です。\n"
-            "課長のレビューを通すため、変更は小さく安全に。\n"
-            "変更は Unified diff 形式で出力してください。"
-        ),
+    # use_worker_container が有効ならコンテナ内で実行
+    impl = _run_worker_step(
+        worker=worker,
+        lead=lead,
+        plan=plan,
+        spec=spec,
+        workdir=workdir,
+        model=model,
+        backend=backend,
+        runtime=runtime,
+        offline=offline,
     )
-    impl_prompt = (
-        f"社長の方針/計画:\n\n{plan.content}\n\n"
-        f"プロジェクト名: {spec.project}\n"
-        f"課ブランチ: {team_branch(lead.id)}\n"
-    )
-    impl = worker_agent.run(user_prompt=impl_prompt, model=model, backend=backend)
     msgs.append(impl)
 
     # apply patch (従来通り workdir に apply)
@@ -197,6 +194,128 @@ def run_approval_pipeline(
     )
 
     return ApprovalRunResult(report=report, messages=msgs, assignment=assignment)
+
+
+def _run_worker_step(
+    *,
+    worker: AgentDef,
+    lead: AgentDef,
+    plan: AgentMessage,
+    spec: UsagiSpec,
+    workdir: Path,
+    model: str,
+    backend: LLMBackend,
+    runtime: RuntimeMode,
+    offline: bool,
+) -> AgentMessage:
+    """ワーカーの実装ステップ。コンテナ or ローカルで実行。"""
+    import logging
+
+    log = logging.getLogger(__name__)
+
+    if not offline and runtime.use_worker_container:
+        log.info("worker step: using container")
+        return _run_worker_in_container(
+            worker=worker,
+            lead=lead,
+            plan=plan,
+            spec=spec,
+            workdir=workdir,
+            model=model,
+            runtime=runtime,
+        )
+
+    # ローカル実行（offline / dry-run / コンテナ無効時）
+    worker_agent = _agent_for(
+        worker,
+        role="coder",
+        system_prompt=(
+            "あなたはワーカー(worker)です。\n"
+            "課長のレビューを通すため、変更は小さく安全に。\n"
+            "変更は Unified diff 形式で出力してください。"
+        ),
+    )
+    impl_prompt = (
+        f"社長の方針/計画:\n\n{plan.content}\n\n"
+        f"プロジェクト名: {spec.project}\n"
+        f"課ブランチ: {team_branch(lead.id)}\n"
+    )
+    return worker_agent.run(user_prompt=impl_prompt, model=model, backend=backend)
+
+
+def _run_worker_in_container(
+    *,
+    worker: AgentDef,
+    lead: AgentDef,
+    plan: AgentMessage,
+    spec: UsagiSpec,
+    workdir: Path,
+    model: str,
+    runtime: RuntimeMode,
+) -> AgentMessage:
+    """ワーカーの実装をDockerコンテナ内で実行する。"""
+    import logging
+    import subprocess
+    import tempfile
+
+    log = logging.getLogger(__name__)
+
+    # plan + spec をプロンプトとしてファイルに書き出し
+    prompt = (
+        f"社長の方針/計画:\n\n{plan.content}\n\n"
+        f"プロジェクト名: {spec.project}\n"
+        f"課ブランチ: {team_branch(lead.id)}\n\n"
+        "変更は Unified diff 形式で出力してください。"
+    )
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".md", delete=False, encoding="utf-8",
+    ) as f:
+        f.write(prompt)
+        prompt_path = Path(f.name)
+
+    try:
+        from usagi.worker_container import _ensure_worker_image
+
+        image = "usagi-worker:latest"
+        _ensure_worker_image(
+            repo_root=Path(".").resolve(),
+            image=image,
+            image_build=runtime.worker_image_build,
+        )
+
+        cmd = [
+            "docker", "run", "--rm",
+            "-v", f"{prompt_path.resolve()}:/prompt.md:ro",
+            "-v", f"{workdir.resolve()}:/work",
+            "-w", "/work",
+            "--entrypoint", "codex",
+            image,
+            "exec",
+            "--file", "/prompt.md",
+        ]
+
+        log.info("worker container cmd: %s", " ".join(cmd))
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        log.info(
+            "worker container done: code=%d stdout=%d stderr=%d",
+            r.returncode, len(r.stdout or ""), len(r.stderr or ""),
+        )
+
+        content = r.stdout or ""
+        if r.returncode != 0:
+            content = (
+                f"(worker container failed with code {r.returncode})\n\n"
+                + content
+            )
+
+        return AgentMessage(
+            agent_name=worker.name or worker.id,
+            role="coder",
+            content=content,
+        )
+    finally:
+        prompt_path.unlink(missing_ok=True)
 
 
 def _build_plan_prompt(spec: UsagiSpec) -> str:
