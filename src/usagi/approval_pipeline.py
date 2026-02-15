@@ -24,6 +24,7 @@ from pathlib import Path
 from usagi.agents import AgentMessage, CodexCLIBackend, LLMBackend, OfflineBackend, UsagiAgent
 from usagi.approval import Assignment, assign_default
 from usagi.artifacts import write_artifact
+from usagi.prompt_compact import compact_for_prompt
 from usagi.git_ops import team_branch
 from usagi.org import AgentDef, Organization
 from usagi.report import render_report
@@ -138,8 +139,9 @@ def run_approval_pipeline(
             "承認する場合は必ず 'APPROVE' と書き、差戻しなら 'CHANGES_REQUESTED' と書いてください。"
         ),
     )
+    impl_compact = compact_for_prompt(impl.content, stage="lead_review_impl")
     review_prompt = (
-        f"ワーカー差分:\n\n{impl.content}\n\n"
+        f"ワーカー差分(圧縮):\n\n{impl_compact}\n\n"
         "判断: APPROVE / CHANGES_REQUESTED\n"
     )
     lead_review = lead_agent.run(user_prompt=review_prompt, model=model, backend=backend)
@@ -161,9 +163,11 @@ def run_approval_pipeline(
             "のいずれかを必ず含めてください。"
         ),
     )
+    plan_compact = compact_for_prompt(plan.content, stage="manager_plan")
+    lead_review_compact = compact_for_prompt(lead_review.content, stage="manager_lead_review")
     manager_prompt = (
-        f"社長計画:\n\n{plan.content}\n\n"
-        f"課長レビュー:\n\n{lead_review.content}\n\n"
+        f"社長計画(圧縮):\n\n{plan_compact}\n\n"
+        f"課長レビュー(圧縮):\n\n{lead_review_compact}\n\n"
         f"課ブランチ: {team_branch(lead.id)}\n"
         "判断: MERGE_OK / NEED_MORE_REVIEW / ESCALATE_TO_BOSS\n"
     )
@@ -199,10 +203,16 @@ def run_approval_pipeline(
             org=org,
             runtime=runtime,
             context=(
-                f"依頼: {spec.project}\n\n"
-                f"社長計画:\n{plan.content}\n\n"
-                f"課長レビュー:\n{lead_review.content}\n\n"
-                f"部長判断:\n{manager_decision.content}\n"
+                compact_for_prompt(
+                    (
+                        f"依頼: {spec.project}\n\n"
+                        f"社長計画:\n{plan.content}\n\n"
+                        f"課長レビュー:\n{lead_review.content}\n\n"
+                        f"部長判断:\n{manager_decision.content}\n"
+                    ),
+                    stage="vote_context",
+                    max_chars=3500,
+                )
             ),
         )
         # ログに残す
@@ -287,8 +297,9 @@ def _run_worker_step_worktree(
     repo.worktree_add(wt_dir, team)
 
     # worker prompt
+    plan_compact = compact_for_prompt(plan.content, stage="worker_plan", max_chars=2500)
     prompt = (
-        f"社長の方針/計画:\n\n{plan.content}\n\n"
+        f"社長の方針/計画(圧縮):\n\n{plan_compact}\n\n"
         f"プロジェクト名: {spec.project}\n"
         f"課ブランチ: {team}\n\n"
         "作業はこの作業ディレクトリ上で行ってください。\n"
