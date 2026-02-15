@@ -4,11 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from usagi.git_ops import GitRepo, org_branch
+from usagi.git_ops import GitRepo, org_branch, team_branch
 
 
 def test_org_branch() -> None:
     assert org_branch("dev") == "org/dev"
+
+
+def test_team_branch() -> None:
+    assert team_branch("dev_lead") == "team-dev_lead"
 
 
 def test_git_repo_init_and_branch(tmp_path: Path) -> None:

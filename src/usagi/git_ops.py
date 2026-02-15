@@ -64,3 +64,18 @@ class GitRepo:
 
 def org_branch(agent_id: str) -> str:
     return f"org/{agent_id}"
+
+
+def team_branch(lead_id: str) -> str:
+    """課(lead)単位のブランチ名（フラット命名）。
+
+    例: lead_id="dev_lead" -> "team-dev_lead"
+
+    NOTE: これは運用ポリシーの土台。
+    実際の承認フロー（worker -> lead 承認 -> team branch 反映等）は runtime/pipeline 側で強制する。
+    """
+
+    lead_id = lead_id.strip()
+    if not lead_id:
+        raise ValueError("lead_id is required")
+    return f"team-{lead_id}"
