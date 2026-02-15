@@ -57,8 +57,9 @@ except ModuleNotFoundError:  # Python < 3.11
 ROLE_BOSS = "boss"
 ROLE_GHOST_BOSS = "ghost_boss"
 ROLE_MANAGER = "manager"
+ROLE_LEAD = "lead"  # 課長（レビュー責任者）
 ROLE_WORKER = "worker"
-ROLE_REVIEWER = "reviewer"
+ROLE_REVIEWER = "reviewer"  # 互換用（旧: reviewer）
 
 
 @dataclass
@@ -67,7 +68,7 @@ class AgentDef:
 
     id: str
     name: str
-    role: str  # boss | ghost_boss | manager | worker | reviewer | ...
+    role: str  # boss | ghost_boss | manager | lead | worker | reviewer | ...
     model: str = "codex"
 
     emoji: str = ""  # 表示用（例: 🐰 🐶）
@@ -211,7 +212,7 @@ def _load_org_legacy(raw: dict) -> Organization:
     )
     agents.append(boss)
 
-    # departments を manager/worker/reviewer に変換
+    # departments を manager/lead/worker/reviewer に変換（legacy互換）
     for idx, dept in enumerate(raw.get("departments", []), start=1):
         mgr_data = dept.get("manager", {})
         mgr_id = mgr_data.get("id", f"mgr{idx}")
@@ -252,7 +253,7 @@ def _load_org_legacy(raw: dict) -> Organization:
 
 
 def default_org() -> Organization:
-    """デフォルト組織（社長/開発部長/ワーカー/品質部長/レビュー）。"""
+    """デフォルト組織（社長/部長/課長/ワーカー）。"""
     return Organization(
         agents=[
             AgentDef(id="boss", name="社長うさぎ", role=ROLE_BOSS, reports_to=""),
@@ -261,16 +262,31 @@ def default_org() -> Organization:
                 name="開発部長うさぎ",
                 role=ROLE_MANAGER,
                 reports_to="boss",
+                can_command=["dev_lead"],
+            ),
+            AgentDef(
+                id="dev_lead",
+                name="開発課長うさぎ",
+                role=ROLE_LEAD,
+                reports_to="dev_mgr",
                 can_command=["worker1"],
             ),
-            AgentDef(id="worker1", name="実装うさぎ", role=ROLE_WORKER, reports_to="dev_mgr"),
+            AgentDef(id="worker1", name="実装うさぎ", role=ROLE_WORKER, reports_to="dev_lead"),
             AgentDef(
                 id="qa_mgr",
                 name="品質部長うさぎ",
                 role=ROLE_MANAGER,
                 reports_to="boss",
+                can_command=["qa_lead"],
+            ),
+            AgentDef(
+                id="qa_lead",
+                name="品質課長うさぎ",
+                role=ROLE_LEAD,
+                reports_to="qa_mgr",
                 can_command=["reviewer1"],
             ),
-            AgentDef(id="reviewer1", name="監査うさぎ", role=ROLE_REVIEWER, reports_to="qa_mgr"),
+            # 互換: reviewer（監査役）を残す
+            AgentDef(id="reviewer1", name="監査うさぎ", role=ROLE_REVIEWER, reports_to="qa_lead"),
         ]
     )

@@ -8,9 +8,10 @@ git worktree で個別の作業環境を提供する。
 2. git worktree add で worker 専用ブランチを作成
 3. Docker コンテナを起動（worktree をマウント、profile の codex_config を注入）
 4. コンテナ内で codex exec 実行
-5. 結果を課(manager)ブランチにマージ要求
-6. 部長(manager)が承認→課ブランチにマージ
-7. main へのマージは社長(boss)権限
+5. 結果を課(lead)ブランチにマージ要求
+6. 課長(lead)が承認→課ブランチにマージ
+7. 部長(manager)が課ブランチを main にマージして良いか判断
+8. main へのマージ自体は社長(boss)権限（運用ポリシーとして強制予定）
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from usagi.org import ROLE_BOSS, ROLE_MANAGER, AgentDef, Organization
+from usagi.org import ROLE_BOSS, ROLE_LEAD, ROLE_MANAGER, AgentDef, Organization
 
 try:
     # profiles.py が導入済みの場合はそれを使う
@@ -42,7 +43,7 @@ class WorkerBranch:
     worker_id: str
     branch_name: str
     worktree_path: Path
-    team_branch: str  # 課(manager)のブランチ
+    team_branch: str  # 課(lead)のブランチ
 
 
 @dataclass
@@ -52,11 +53,11 @@ class BranchPolicy:
     org: Organization
 
     def can_merge_to_team(self, agent_id: str, team_branch: str) -> bool:
-        """課ブランチへのマージ権限（部長以上）。"""
+        """課ブランチへのマージ権限（課長以上）。"""
         agent = self.org.find(agent_id)
         if not agent:
             return False
-        return agent.role in (ROLE_MANAGER, ROLE_BOSS)
+        return agent.role in (ROLE_LEAD, ROLE_MANAGER, ROLE_BOSS)
 
     def can_merge_to_main(self, agent_id: str) -> bool:
         """mainブランチへのマージ権限（社長のみ）。"""
