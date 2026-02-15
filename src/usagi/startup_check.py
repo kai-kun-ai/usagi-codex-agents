@@ -1,7 +1,7 @@
 """起動時セルフチェック。
 
 目的:
-- APIキーの有無を events.log に残す（値は出さない）
+- Codex CLI が利用可能かを events.log に残す
 - API疎通を軽く試す（任意）。失敗してもwatch/TUIを落とさない。
 
 注意:
@@ -10,11 +10,11 @@
 
 from __future__ import annotations
 
-import os
+import shutil
+import subprocess
 import time
 from pathlib import Path
 
-from usagi.llm_backend import LLM, LLMConfig
 from usagi.runtime import RuntimeMode
 
 
@@ -25,6 +25,40 @@ def _event(event_log_path: Path | None, msg: str) -> None:
     ts = time.strftime("%Y-%m-%d %H:%M:%S")
     with event_log_path.open("a", encoding="utf-8") as f:
         f.write(f"[{ts}] {msg}\n")
+
+
+def _check_codex_cli(event_log_path: Path | None) -> bool:
+    """codex CLI が PATH 上にあるかチェック。"""
+    found = shutil.which("codex") is not None
+    _event(event_log_path, f"startup_check: codex_cli={'found' if found else 'not_found'}")
+    return found
+
+
+def _check_claude_cli(event_log_path: Path | None) -> bool:
+    """claude CLI が PATH 上にあるかチェック。"""
+    found = shutil.which("claude") is not None
+    _event(event_log_path, f"startup_check: claude_cli={'found' if found else 'not_found'}")
+    return found
+
+
+def _check_codex_auth(event_log_path: Path | None) -> bool:
+    """codex CLI で軽い疎通テスト（codex exec でヘルスチェック）。"""
+    try:
+        result = subprocess.run(
+            ["codex", "exec", "reply with just OK"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        ok = result.returncode == 0 and "OK" in (result.stdout or "")
+        _event(
+            event_log_path,
+            f"startup_check: codex_auth={'ok' if ok else 'fail'}",
+        )
+        return ok
+    except Exception as e:
+        _event(event_log_path, f"startup_check: codex_auth=fail ({type(e).__name__})")
+        return False
 
 
 def run_startup_check(
@@ -38,16 +72,10 @@ def run_startup_check(
         _event(event_log_path, "startup_check: offline -> skip")
         return
 
-    has_openai = bool(os.environ.get("OPENAI_API_KEY"))
-    _event(event_log_path, f"startup_check: OPENAI_API_KEY={'set' if has_openai else 'missing'}")
+    # CLI の存在チェック
+    has_codex = _check_codex_cli(event_log_path)
+    _check_claude_cli(event_log_path)
 
-    if not has_openai:
-        return
-
-    try:
-        llm = LLM(LLMConfig(backend="openai", model=model))
-        out = llm.generate("healthcheck: reply with OK")
-        ok = "OK" in (out or "")
-        _event(event_log_path, f"startup_check: openai_api={'ok' if ok else 'unexpected'}")
-    except Exception as e:  # pragma: no cover
-        _event(event_log_path, f"startup_check: openai_api=fail ({type(e).__name__})")
+    # Codex CLI があれば疎通テスト
+    if has_codex:
+        _check_codex_auth(event_log_path)
