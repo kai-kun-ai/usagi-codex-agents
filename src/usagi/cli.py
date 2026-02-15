@@ -217,12 +217,17 @@ def tui(
         "--root",
         help="作業ルート（inputs/outputs/.usagi が置かれる場所）",
     ),
+    org: Path = typer.Option(
+        Path("examples/org.toml"),
+        "--org",
+        help="組織定義TOMLへのパス（組織図表示に使用）",
+    ),
     model: str = typer.Option("codex", "--model", help="利用モデル"),
     offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
     demo: bool = typer.Option(False, "--demo", help="デモ（疑似稼働）モード"),
 ) -> None:
     """統合CUI（管理画面）を起動。"""
-    run_tui(root=root, model=model, offline=offline, demo=demo)
+    run_tui(root=root, org_path=org, model=model, offline=offline, demo=demo)
 
 
 @app.command()
