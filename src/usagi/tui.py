@@ -26,6 +26,8 @@ from usagi.demo import DemoConfig, run_demo_forever
 from usagi.display import display_name
 from usagi.org import load_org
 from usagi.secretary import append_secretary_log, place_input_for_boss, secretary_log_path
+from usagi.state import load_status
+from usagi.watch import watch_inputs
 
 
 def _fallback_org_path(org_path: Path, root: Path) -> Path:
@@ -47,8 +49,6 @@ def _fallback_org_path(org_path: Path, root: Path) -> Path:
         if c.exists():
             return c
     return org_path
-from usagi.state import load_status
-from usagi.watch import watch_inputs
 
 
 def _mode_label(root: Path) -> str:
