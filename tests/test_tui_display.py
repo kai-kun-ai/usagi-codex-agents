@@ -78,7 +78,8 @@ reports_to = "boss"
 
 
 @pytest.mark.asyncio()
-async def test_tui_shows_status(work_root: Path, org_path: Path) -> None:
+async def test_tui_shows_status_in_org(work_root: Path, org_path: Path) -> None:
+    """状態表示は組織図に統合されている。"""
     app = UsagiTui(
         root=work_root,
         org_path=org_path,
@@ -88,9 +89,8 @@ async def test_tui_shows_status(work_root: Path, org_path: Path) -> None:
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        # status box should show agent info
-        status_text = app.query_one("#status").render()
-        assert status_text is not None
+        org_renderable = app.query_one("#org").render()
+        assert org_renderable is not None
 
 
 @pytest.mark.asyncio()
@@ -161,10 +161,10 @@ async def test_tui_mode_toggle_button(work_root: Path, org_path: Path) -> None:
         await pilot.pause()
         # toggle to stop
         await pilot.click("#mode")
-        await pilot.pause()
+        await pilot.pause(0.6)
         assert (work_root / ".usagi/STOP").exists()
 
         # toggle back to running
         await pilot.click("#mode")
-        await pilot.pause()
+        await pilot.pause(0.6)
         assert not (work_root / ".usagi/STOP").exists()
