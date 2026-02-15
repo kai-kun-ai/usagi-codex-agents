@@ -40,6 +40,9 @@ d-shell: d-build
 		*) echo "WORKDIR must be an absolute path: $(WORKDIR)"; exit 2 ;; \
 	esac
 	docker run --rm -it \
+	  -e USAGI_DISCORD_TOKEN \
+	  -e USAGI_DISCORD_CHANNEL_ID \
+	  -e USAGI_DISCORD_WEBHOOK_URL \
 	  -v "$(WORKDIR)":/work \
 	  -v "$$PWD":/app \
 	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \
@@ -66,6 +69,9 @@ run: d-build
 	DEMO_FLAG=""; \
 	if [ "$(DEMO)" = "1" ]; then DEMO_FLAG="--demo"; fi; \
 	docker run --rm -it \
+	  -e USAGI_DISCORD_TOKEN \
+	  -e USAGI_DISCORD_CHANNEL_ID \
+	  -e USAGI_DISCORD_WEBHOOK_URL \
 	  -v "$(WORKDIR)":/work \
 	  -v "$$PWD":/app \
 	  -v "$$PWD/.usagi/sessions/codex/$(PROFILE)":/root/.codex \
