@@ -30,19 +30,34 @@ from usagi.state import load_status
 from usagi.watch import watch_inputs
 
 
+def _repo_root() -> Path:
+    # repo layout: <root>/src/usagi/tui.py
+    return Path(__file__).resolve().parents[2]
+
+
 def _fallback_org_path(org_path: Path, root: Path) -> Path:
     """org_path が存在しない時のフォールバック。
 
-    - make demo は /app に repo がある前提なので /app/examples/org.toml を試す
-    - root 配下 examples/org.toml も試す
+    典型パターン:
+    - make run/demo で作業ディレクトリを /work にしている（CWD=/work）
+      しかし org.toml は repo 側（/app/examples/org.toml）にある。
+
+    そのため、org_path が見つからない場合は repo_root と root 側も探す。
     """
 
     if org_path.exists():
         return org_path
 
-    candidates = [
+    repo_root = _repo_root()
+
+    candidates: list[Path] = [
+        # docker image上のrepo
         Path("/app/examples/org.toml"),
+        repo_root / "examples/org.toml",
+        # root/workdir側
         root / "examples/org.toml",
+        # 引数が相対パスなら repo_root 配下を優先的に試す
+        (repo_root / org_path) if not org_path.is_absolute() else org_path,
         Path("examples/org.toml"),
     ]
     for c in candidates:
@@ -409,7 +424,8 @@ class UsagiTui(App):
 
 def run_tui(*, root: Path, org_path: Path, model: str, offline: bool, demo: bool) -> None:
     root = root.resolve()
-    org_path = org_path.resolve()
+    # org_path は CWD に依存して resolve されると /work/examples/... のようにズレるため、
+    # ここでは解決しない（TUI側のフォールバック探索に任せる）。
     # events.logが読めるように最低限作っておく
     (root / ".usagi").mkdir(parents=True, exist_ok=True)
     # Textual起動
