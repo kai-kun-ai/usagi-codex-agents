@@ -261,6 +261,9 @@ class WatchWorker:
                 root=self.outputs_dir.parent,
                 status_path=self.status_path,
                 repo_root=project_dir,
+                outputs_dir=self.outputs_dir,
+                input_rel=str(p.relative_to(self.inputs_dir)) if self.inputs_dir in p.parents else p.name,
+                job_id=job_id,
             )
             self._write_report(p, res.report, spec=spec, job_id=job_id, messages=res.messages)
             self._event("pipeline done")
