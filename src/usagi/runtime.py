@@ -36,12 +36,26 @@ class VotePolicy:
 
 
 @dataclass
+class PromptCompression:
+    enabled: bool = True
+    max_chars_default: int = 2500
+    max_chars_vote: int = 3500
+
+
+@dataclass
 class AutopilotConfig:
     enabled: bool = False
     inputs_dir: str = "inputs"
     outputs_dir: str = "outputs"
     work_root: str = "work"
     stop_commands: list[str] = field(default_factory=lambda: ["STOP_USAGI", "usagi autopilot stop"])
+
+
+@dataclass
+class PromptCompression:
+    enabled: bool = True
+    max_chars_default: int = 2500
+    max_chars_vote: int = 3500
 
 
 @dataclass
@@ -59,6 +73,8 @@ class RuntimeMode:
     use_worker_container: bool = True  # worker処理を別コンテナで実行する
     worker_image_build: str = "auto"  # auto | never
     input_postprocess: str = "keep"  # keep | trash
+
+    compress: PromptCompression = field(default_factory=PromptCompression)
 
 
 def load_runtime(path: Path | None = None) -> RuntimeMode:
@@ -102,4 +118,9 @@ def load_runtime(path: Path | None = None) -> RuntimeMode:
         use_worker_container=bool(system.get("use_worker_container", True)),
         worker_image_build=str(system.get("worker_image_build", "auto")),
         input_postprocess=str(system.get("input_postprocess", "keep")),
+        compress=PromptCompression(
+            enabled=bool(system.get("compress", {}).get("enabled", True)),
+            max_chars_default=int(system.get("compress", {}).get("max_chars_default", 2500)),
+            max_chars_vote=int(system.get("compress", {}).get("max_chars_vote", 3500)),
+        ),
     )

@@ -139,7 +139,12 @@ def run_approval_pipeline(
             "承認する場合は必ず 'APPROVE' と書き、差戻しなら 'CHANGES_REQUESTED' と書いてください。"
         ),
     )
-    impl_compact = compact_for_prompt(impl.content, stage="lead_review_impl")
+    impl_compact = compact_for_prompt(
+        impl.content,
+        stage="lead_review_impl",
+        max_chars=runtime.compress.max_chars_default,
+        enabled=runtime.compress.enabled,
+    )
     review_prompt = (
         f"ワーカー差分(圧縮):\n\n{impl_compact}\n\n"
         "判断: APPROVE / CHANGES_REQUESTED\n"
@@ -163,8 +168,18 @@ def run_approval_pipeline(
             "のいずれかを必ず含めてください。"
         ),
     )
-    plan_compact = compact_for_prompt(plan.content, stage="manager_plan")
-    lead_review_compact = compact_for_prompt(lead_review.content, stage="manager_lead_review")
+    plan_compact = compact_for_prompt(
+        plan.content,
+        stage="manager_plan",
+        max_chars=runtime.compress.max_chars_default,
+        enabled=runtime.compress.enabled,
+    )
+    lead_review_compact = compact_for_prompt(
+        lead_review.content,
+        stage="manager_lead_review",
+        max_chars=runtime.compress.max_chars_default,
+        enabled=runtime.compress.enabled,
+    )
     manager_prompt = (
         f"社長計画(圧縮):\n\n{plan_compact}\n\n"
         f"課長レビュー(圧縮):\n\n{lead_review_compact}\n\n"
@@ -211,7 +226,8 @@ def run_approval_pipeline(
                         f"部長判断:\n{manager_decision.content}\n"
                     ),
                     stage="vote_context",
-                    max_chars=3500,
+                    max_chars=runtime.compress.max_chars_vote,
+                    enabled=runtime.compress.enabled,
                 )
             ),
         )
@@ -297,7 +313,12 @@ def _run_worker_step_worktree(
     repo.worktree_add(wt_dir, team)
 
     # worker prompt
-    plan_compact = compact_for_prompt(plan.content, stage="worker_plan", max_chars=2500)
+    plan_compact = compact_for_prompt(
+        plan.content,
+        stage="worker_plan",
+        max_chars=runtime.compress.max_chars_default,
+        enabled=runtime.compress.enabled,
+    )
     prompt = (
         f"社長の方針/計画(圧縮):\n\n{plan_compact}\n\n"
         f"プロジェクト名: {spec.project}\n"
