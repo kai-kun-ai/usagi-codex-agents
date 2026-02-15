@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from usagi.org import ROLE_MANAGER, ROLE_WORKER, default_org, load_org
+from usagi.org import ROLE_LEAD, ROLE_MANAGER, ROLE_WORKER, default_org, load_org
 
 
 def test_default_org_has_hierarchy() -> None:
@@ -14,12 +14,19 @@ def test_default_org_has_hierarchy() -> None:
     assert dev_mgr is not None
     assert dev_mgr.role == ROLE_MANAGER
 
+    lead = org.find("dev_lead")
+    assert lead is not None
+    assert lead.role == ROLE_LEAD
+    assert lead.reports_to == "dev_mgr"
+
     worker1 = org.find("worker1")
     assert worker1 is not None
     assert worker1.role == ROLE_WORKER
-    assert worker1.reports_to == "dev_mgr"
+    assert worker1.reports_to == "dev_lead"
 
-    assert org.can_command("dev_mgr", "worker1") is True
+    # manager -> lead -> worker
+    assert org.can_command("dev_mgr", "dev_lead") is True
+    assert org.can_command("dev_lead", "worker1") is True
 
 
 def test_load_org_new_format(tmp_path: Path) -> None:
