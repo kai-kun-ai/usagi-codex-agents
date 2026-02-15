@@ -12,6 +12,7 @@ from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
 from usagi.state import load_status
+from usagi.tui import run_tui
 from usagi.validate import validate_spec
 from usagi.watch import watch_inputs
 
@@ -124,6 +125,7 @@ def watch(
         recursive=recursive,
         stop_file=Path(".usagi/STOP"),
         status_path=Path(".usagi/status.json"),
+        event_log_path=Path(".usagi/events.log"),
     )
 
 
@@ -152,6 +154,7 @@ def autopilot_start(
         recursive=True,
         stop_file=Path(".usagi/STOP"),
         status_path=Path(".usagi/status.json"),
+        event_log_path=Path(".usagi/events.log"),
     )
 
 
@@ -205,6 +208,15 @@ def mcp() -> None:
 
     tools = [Tool(name="echo", description="echo text", schema={"type": "object"})]
     StdinMCP(tools).run()
+
+
+@app.command()
+def tui(
+    model: str = typer.Option("codex", "--model", help="利用モデル"),
+    offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
+) -> None:
+    """統合CUI（管理画面）を起動。"""
+    run_tui(root=Path("."), model=model, offline=offline)
 
 
 @app.command()
