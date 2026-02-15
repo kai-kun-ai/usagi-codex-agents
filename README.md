@@ -7,6 +7,18 @@
 - Discord連携: **discord.py**（OpenClaw非依存）
 - Codex/Claude: 公式CLIをDockerに同梱（プロファイルをvolumeで切替）
 
+## Discord連携（任意）
+
+Discord へ進捗を投稿したり、メンションを受け取って boss inbox に流す場合は、以下の環境変数が必要です。
+
+- **受信/送信（Botトークン方式）**
+  - `USAGI_DISCORD_TOKEN`（Bot Token）
+  - `USAGI_DISCORD_CHANNEL_ID`（投稿・監視するチャンネルID）
+- **進捗投稿（Webhook方式 / 任意）**
+  - `USAGI_DISCORD_WEBHOOK_URL`（Incoming Webhook URL）
+
+`make run` / `make d-shell` は、上記の環境変数がホスト側に設定されていればコンテナへ引き継ぎます（未設定なら何もしません）。
+
 ## テスト
 
 ```bash
