@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from usagi.org import ROLE_BOSS, ROLE_MANAGER, AgentDef, Organization
+
 try:
     # profiles.py が導入済みの場合はそれを使う
     from usagi.profiles import ProfileDef  # type: ignore
