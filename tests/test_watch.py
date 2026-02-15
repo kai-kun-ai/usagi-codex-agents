@@ -46,6 +46,8 @@ def test_worker_ignores_non_md(tmp_path: Path) -> None:
         model="codex",
         dry_run=True,
         offline=True,
+        org_path=None,
+        runtime_path=None,
         status_path=None,
     )
 
@@ -71,6 +73,8 @@ def test_worker_processes_spec_and_writes_report(tmp_path: Path) -> None:
         model="codex",
         dry_run=True,
         offline=True,
+        org_path=None,
+        runtime_path=None,
         status_path=None,
     )
 
