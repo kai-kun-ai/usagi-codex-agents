@@ -74,6 +74,35 @@ usagi autopilot-stop
 
 ---
 
+## Codex / Claude login（複数セッション）
+
+APIキーだけでなく、CLIログイン（セッションディレクトリ）も扱えるようにします。
+
+- Codex: `~/.codex`
+- Claude: `~/.claude`
+
+### Dockerでのプロファイル切替（例）
+
+`profile=alice` の場合：
+
+```bash
+mkdir -p .usagi/sessions/codex/alice .usagi/sessions/claude/alice
+
+docker run --rm -it \
+  -v "$PWD":/app \
+  -v "$PWD/.usagi/sessions/codex/alice":/root/.codex \
+  -v "$PWD/.usagi/sessions/claude/alice":/root/.claude \
+  usagi bash
+
+# コンテナ内でログイン
+# codex login
+# claude setup-token
+```
+
+※ CLIの実体（`codex` / `claude`）はDockerイメージにインストールしておく必要があります。
+
+---
+
 ## Discord連携（OpenClaw非依存 / discord.py）
 
 現状の実装:
