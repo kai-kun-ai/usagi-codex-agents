@@ -343,7 +343,15 @@ class UsagiTui(App):
     #inputs { height: 12; border: solid yellow; padding: 0 1; }
     #secretary_scroll { height: 12; border: solid magenta; padding: 0 1; }
     #secretary_chat { height: auto; }
-    #secretary_controls { height: auto; }
+
+    /* NOTE:
+       端末幅が狭いと Input が横幅を使い切ってボタンが画面外に押し出されるため、
+       controls は縦積みにする（ボタン行を別にして常に見えるように）。
+    */
+    #secretary_controls { height: auto; layout: vertical; }
+    #secretary_controls_buttons { height: auto; }
+    #secretary_to_hint { color: $text-muted; }
+
     #org_scroll { height: 1fr; border: solid blue; padding: 0 1; }
     #org { height: auto; }
 
@@ -351,6 +359,7 @@ class UsagiTui(App):
         border: heavy white;
         background: $surface;
         height: 3;
+        width: 1fr;
     }
 
     #secretary_to_input {
@@ -367,6 +376,7 @@ class UsagiTui(App):
 
     BINDINGS = [
         ("ctrl+s", "toggle", "Start/Stop"),
+        ("ctrl+b", "secretary_to_input", "社長に渡す（ボタンと同じ）"),
         ("d", "delete_input", "Delete selected input"),
         ("q", "quit", "Quit"),
     ]
@@ -404,7 +414,7 @@ class UsagiTui(App):
                         chat.border_title = "秘書(🐻)との対話"
                         yield chat
 
-                    with Horizontal(id="secretary_controls"):
+                    with Container(id="secretary_controls"):
                         yield Input(
                             placeholder=(
                                 "ここに日本語で入力 → Enter で送信"
@@ -412,7 +422,9 @@ class UsagiTui(App):
                             ),
                             id="secretary_input",
                         )
-                        yield Button("社長に渡す", id="secretary_to_input")
+                        with Horizontal(id="secretary_controls_buttons"):
+                            yield Button("社長に渡す", id="secretary_to_input")
+                            yield Static("Ctrl+B", id="secretary_to_hint")
 
                     inputs_box = _InputsBox(
                         inputs_dir=self.root / "inputs",
@@ -543,6 +555,10 @@ class UsagiTui(App):
             clear_stop(self.root)
         else:
             request_stop(self.root)
+
+    def action_secretary_to_input(self) -> None:
+        """秘書チャットの内容を inputs/ に起票する（ボタンと同じ）。"""
+        self._secretary_to_input()
 
     def action_delete_input(self) -> None:
         """選択中inputを .usagi/trash/ に移動。"""
