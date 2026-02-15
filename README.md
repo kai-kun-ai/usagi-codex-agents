@@ -85,7 +85,7 @@ usagi autopilot-start --offline
 ### 統合CUI
 
 - `usagi tui`
-  - `s`: Start/Stop（STOPファイルの作成/解除）
+  - `ctrl+s`: Start/Stop（STOPファイルの作成/解除）
   - 社長チャット: 画面から社長inboxへメッセージ送信（.usagi/inbox/）
   - 組織図: `--org` の定義をツリー表示（絵文字/名前の表示に対応）
   - うさぎの稼働状態（working/idle）とタスク

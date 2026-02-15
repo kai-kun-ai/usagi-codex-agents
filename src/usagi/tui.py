@@ -176,7 +176,7 @@ class UsagiTui(App):
     """
 
     BINDINGS = [
-        ("s", "toggle", "Start/Stop"),
+        ("ctrl+s", "toggle", "Start/Stop"),
         ("q", "quit", "Quit"),
     ]
 
@@ -225,6 +225,12 @@ class UsagiTui(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        # 入力フォーカス（社長チャットをすぐ打てるように）
+        try:
+            self.query_one("#boss_input", Input).focus()
+        except Exception:
+            pass
+
         # demoモードではwatchの代わりに疑似更新を走らせる
         if self.demo:
             self._ensure_demo_thread()

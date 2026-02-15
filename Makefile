@@ -81,4 +81,5 @@ run: d-build
 demo: d-build
 	docker run --rm -it \
 	  -v /work \
+	  -w /app \
 	  $(IMAGE) tui --root /work --org /app/examples/org.toml --demo
