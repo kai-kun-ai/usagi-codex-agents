@@ -20,6 +20,7 @@ from usagi.agent_memory import append_memory, read_memory
 from usagi.artifacts import write_artifact
 from usagi.git_ops import GitRepo, team_branch
 from usagi.report_state import update_boss_report
+from usagi.mailbox_parse import MailMessage
 from usagi.mailbox import archive_message, deliver_markdown, list_inbox
 from usagi.mailbox_parse import parse_mail_markdown
 from usagi.org import Organization
@@ -170,9 +171,13 @@ def manager_tick(*, root: Path, outputs_dir: Path, status_path: Path | None, org
                         root=root,
                         from_agent=mgr.id,
                         to_agent=peer,
-                        kind="share",
-                        title=f"共有: 開発着手 {msg.title}",
-                        body=digest_msg.content,
+                        kind="assist_request",
+                        title=f"協力依頼: {msg.title}",
+                        body=(
+                            "あなたは同一階層の部長です。以下の依頼/方針を見て、\n"
+                            "リスク/懸念/見落とし/追加で確認すべき点を短く返してください。\n\n"
+                            + digest_msg.content
+                        ),
                     )
 
             archive_message(root=root, agent_id=mgr.id, message_path=p)
@@ -298,6 +303,31 @@ def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtim
             continue
 
         if msg.kind == "impl_result":
+            _set(root, status_path, lead.id, lead.name or lead.id, "working", "assist request")
+
+            diff_compact = compact_for_prompt(
+                msg.body,
+                stage="lead_review_diff",
+                max_chars=runtime.compress.max_chars_default,
+                enabled=runtime.compress.enabled,
+            )
+
+            # ask peer review lead for assistance (async). Proceed without blocking.
+            peer = org.find("dev_rev_lead")
+            if peer is not None:
+                deliver_markdown(
+                    root=root,
+                    from_agent=lead.id,
+                    to_agent=peer.id,
+                    kind="assist_request",
+                    title=f"レビュー協力依頼: {msg.title}",
+                    body=(
+                        "あなたはレビュー課長です。以下の差分(圧縮)を見て、\n"
+                        "重大な懸念点/見落とし/確認項目を短く箇条書きで返してください。\n\n"
+                        + diff_compact
+                    ),
+                )
+
             _set(root, status_path, lead.id, lead.name or lead.id, "working", "review")
 
             reviewer = UsagiAgent(
@@ -308,12 +338,6 @@ def lead_tick(*, root: Path, status_path: Path | None, org: Organization, runtim
                     "ワーカーの差分をレビューし、承認する場合は必ず 'APPROVE' と書き、\n"
                     "差戻しなら 'CHANGES_REQUESTED' と書いてください。"
                 ),
-            )
-            diff_compact = compact_for_prompt(
-                msg.body,
-                stage="lead_review_diff",
-                max_chars=runtime.compress.max_chars_default,
-                enabled=runtime.compress.enabled,
             )
             prompt = f"ワーカー差分(圧縮):\n\n{diff_compact}\n\n判断: APPROVE / CHANGES_REQUESTED\n"
             review_msg = reviewer.run(user_prompt=prompt, model=model, backend=backend)

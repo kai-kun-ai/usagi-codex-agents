@@ -24,6 +24,7 @@ from watchdog.observers import Observer
 from usagi.announce import announce
 from usagi.agent_chain import boss_handle_spec, lead_tick, manager_tick, worker_tick
 from usagi.boss_tick import boss_tick
+from usagi.peer_assist import assist_tick
 from usagi.approval_pipeline import run_approval_pipeline
 from usagi.org import load_org
 from usagi.runtime import load_runtime
@@ -478,6 +479,39 @@ def watch_inputs(
                     offline=offline,
                     repo_root=work_root,
                 )
+
+                # same-layer cooperation
+                assist_tick(
+                    root=root,
+                    status_path=status_path,
+                    org=org,
+                    runtime=runtime,
+                    model=model,
+                    offline=offline,
+                    agent_id="qa_mgr",
+                    role_hint="品質部長",
+                )
+                assist_tick(
+                    root=root,
+                    status_path=status_path,
+                    org=org,
+                    runtime=runtime,
+                    model=model,
+                    offline=offline,
+                    agent_id="ops_mgr",
+                    role_hint="運用部長",
+                )
+                assist_tick(
+                    root=root,
+                    status_path=status_path,
+                    org=org,
+                    runtime=runtime,
+                    model=model,
+                    offline=offline,
+                    agent_id="dev_rev_lead",
+                    role_hint="開発レビュー課長",
+                )
+
                 boss_tick(
                     root=root,
                     outputs_dir=outputs_dir,
