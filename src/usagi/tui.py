@@ -485,6 +485,25 @@ class UsagiTui(App):
         if event.input.id == "secretary_input":
             self._send_secretary_message()
 
+    def on_key(self, event) -> None:  # type: ignore[override]
+        # inputs一覧にフォーカスがある時だけ d/delete を削除として扱う
+        if event.key not in {"d", "delete"}:
+            return
+        focused = getattr(self, "focused", None)
+        if not focused:
+            return
+        if getattr(focused, "id", None) == "inputs":
+            self.action_delete_input()
+            event.stop()
+            return
+        # 子要素にフォーカスがある場合も拾う
+        try:
+            if focused.has_ancestor("#inputs"):
+                self.action_delete_input()
+                event.stop()
+        except Exception:
+            return
+
     def _send_secretary_message(self) -> None:
         inp = self.query_one("#secretary_input", Input)
         text = (inp.value or "").strip()
