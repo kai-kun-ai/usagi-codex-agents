@@ -1,0 +1,44 @@
+[project]
+name = "usagi"
+version = "0.1.0"
+description = "うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+  "openai>=1.40.0",
+  "typer>=0.12.3",
+  "rich>=13.7.1",
+  "pyyaml>=6.0.2",
+  "watchdog>=4.0.1",
+  "discord.py>=2.4.0",
+  "requests>=2.32.0",
+]
+
+
+[project.optional-dependencies]
+# Python 3.11+ は tomllib があるので不要だが、互換用
+toml = ["tomli>=2.0.1; python_version < '3.11'"]
+
+[project.scripts]
+usagi = "usagi.cli:app"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # typer.Argument/Option in defaults is idiomatic
+
+[tool.ruff.lint.isort]
+known-first-party = ["usagi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+# optional; keeps uv happy if used
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
