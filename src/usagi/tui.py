@@ -356,8 +356,10 @@ class UsagiTui(App):
     #focus_bar { height: 1; background: $panel; color: $text-muted; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
-    #inputs { height: 12; border: solid yellow; padding: 0 1; }
-    #secretary_scroll { height: 1fr; border: solid magenta; padding: 0 1; }
+
+    /* Give more room to secretary chat by shrinking inputs and letting secretary grow */
+    #inputs { height: 7; min-height: 5; border: solid yellow; padding: 0 1; }
+    #secretary_scroll { height: 1fr; min-height: 12; border: solid magenta; padding: 0 1; }
     #secretary_chat { height: auto; }
 
     /* NOTE:
@@ -378,6 +380,10 @@ class UsagiTui(App):
         width: 1fr;
         max-height: 6;
     }
+
+    /* Make left column use space efficiently */
+    #left_scroll { height: 1fr; }
+    #secretary_controls { dock: top; }
 
     /* secretary_to_input button removed: Ctrl+B shortcut only */
 
