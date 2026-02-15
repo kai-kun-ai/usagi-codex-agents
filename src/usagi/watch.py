@@ -22,6 +22,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from usagi.announce import announce
+from usagi.boss_inbox import drain_boss_inbox_to_inputs
 from usagi.approval_pipeline import run_approval_pipeline
 from usagi.org import load_org
 from usagi.runtime import load_runtime
@@ -360,6 +361,15 @@ def watch_inputs(
     inputs_dir.mkdir(parents=True, exist_ok=True)
     scan_inputs(inputs_dir, enq)
 
+    # `.usagi/inbox` の内容を inputs に変換して watch フローに統合する。
+    root = inputs_dir.parent
+    for created in drain_boss_inbox_to_inputs(
+        root=root,
+        inputs_dir=inputs_dir,
+        event_log_path=event_log_path,
+    ):
+        enq.enqueue(created, reason="inbox")
+
     obs = Observer()
     obs.schedule(_Handler(enq), str(inputs_dir), recursive=recursive)
     obs.start()
@@ -368,6 +378,15 @@ def watch_inputs(
         while True:
             if stop_file is not None and stop_file.exists():
                 break
+
+            # Discord等の受信(inbox)を定期的にinputsへ変換して投入
+            for created in drain_boss_inbox_to_inputs(
+                root=root,
+                inputs_dir=inputs_dir,
+                event_log_path=event_log_path,
+            ):
+                enq.enqueue(created, reason="inbox")
+
             time.sleep(0.5)
     except KeyboardInterrupt:
         for w in workers:
