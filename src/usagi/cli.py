@@ -212,7 +212,11 @@ def mcp() -> None:
 
 @app.command()
 def tui(
-    root: Path = typer.Option(Path("."), "--root", help="作業ルート（inputs/outputs/.usagi が置かれる場所）"),
+    root: Path = typer.Option(
+        Path("."),
+        "--root",
+        help="作業ルート（inputs/outputs/.usagi が置かれる場所）",
+    ),
     model: str = typer.Option("codex", "--model", help="利用モデル"),
     offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
     demo: bool = typer.Option(False, "--demo", help="デモ（疑似稼働）モード"),
