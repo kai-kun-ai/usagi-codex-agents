@@ -33,9 +33,25 @@ def main(argv: list[str] | None = None) -> int:
 
     args = p.parse_args(argv)
 
+    import sys
+
+    print(f"[worker_entry] spec={args.spec}", file=sys.stderr)
+    print(f"[worker_entry] workdir={args.workdir}", file=sys.stderr)
+    print(f"[worker_entry] model={args.model}", file=sys.stderr)
+    print(f"[worker_entry] offline={args.offline}", file=sys.stderr)
+    print(f"[worker_entry] org={args.org}", file=sys.stderr)
+    print(f"[worker_entry] runtime={args.runtime}", file=sys.stderr)
+    print(f"[worker_entry] root={args.root}", file=sys.stderr)
+
     md = args.spec.read_text(encoding="utf-8")
     spec = parse_spec_markdown(md)
+    print(
+        f"[worker_entry] parsed spec: project={spec.project} "
+        f"objective_len={len(spec.objective)} tasks={len(spec.tasks)}",
+        file=sys.stderr,
+    )
 
+    print("[worker_entry] running approval pipeline...", file=sys.stderr)
     res = run_approval_pipeline(
         spec=spec,
         workdir=args.workdir,
@@ -44,6 +60,10 @@ def main(argv: list[str] | None = None) -> int:
         org=load_org(args.org),
         runtime=load_runtime(args.runtime),
         root=args.root,
+    )
+    print(
+        f"[worker_entry] pipeline done, report_len={len(res.report)}",
+        file=sys.stderr,
     )
 
     print(res.report)

@@ -295,6 +295,11 @@ def run_approval_in_worker_container(
     image: str = "usagi-worker:latest",
     image_build: str = "auto",
 ) -> WorkerContainerResult:
+    import logging
+
+    log = logging.getLogger(__name__)
+
+    log.info("ensuring worker image: %s (build=%s)", image, image_build)
     _ensure_worker_image(repo_root=repo_root, image=image, image_build=image_build)
 
     cmd = build_worker_entry_cmd(
@@ -308,6 +313,8 @@ def run_approval_in_worker_container(
         image=image,
     )
 
+    log.info("worker container cmd: %s", " ".join(cmd))
+
     r = subprocess.run(
         cmd,
         cwd=repo_root,
@@ -315,7 +322,14 @@ def run_approval_in_worker_container(
         capture_output=True,
         text=True,
     )
-    # secrets をうっかりログに出さないため stdout/stderr はそのまま返すだけにする
+
+    log.info(
+        "worker container finished: code=%d stdout=%d bytes stderr=%d bytes",
+        r.returncode,
+        len(r.stdout or ""),
+        len(r.stderr or ""),
+    )
+
     return WorkerContainerResult(
         returncode=int(r.returncode),
         stdout=r.stdout or "",
