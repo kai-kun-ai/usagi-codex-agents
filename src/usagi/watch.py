@@ -57,25 +57,41 @@ class StateStore:
 
 
 class DebouncedEnqueuer:
-    def __init__(self, q: queue.Queue[WatchJob], debounce_seconds: float) -> None:
+    def __init__(
+        self,
+        q: queue.Queue[WatchJob],
+        debounce_seconds: float,
+        *,
+        event_log_path: Path | None = None,
+    ) -> None:
         self.q = q
         self.debounce_seconds = debounce_seconds
+        self.event_log_path = event_log_path
         self._lock = threading.Lock()
         self._timers: dict[str, threading.Timer] = {}
 
-    def enqueue(self, p: Path) -> None:
+    def enqueue(self, p: Path, reason: str = "update") -> None:
         key = str(p)
         with self._lock:
             if key in self._timers:
                 self._timers[key].cancel()
-            t = threading.Timer(self.debounce_seconds, self._fire, args=(p,))
+            t = threading.Timer(self.debounce_seconds, self._fire, args=(p, reason))
             self._timers[key] = t
             t.start()
 
-    def _fire(self, p: Path) -> None:
+    def _fire(self, p: Path, reason: str) -> None:
         with self._lock:
             self._timers.pop(str(p), None)
+        self._event(f"queued({reason}): {p.name}")
         self.q.put(WatchJob(path=p))
+
+    def _event(self, msg: str) -> None:
+        if self.event_log_path is None:
+            return
+        self.event_log_path.parent.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        with self.event_log_path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {msg}\n")
 
 
 class WatchWorker:
@@ -210,16 +226,16 @@ class _Handler(FileSystemEventHandler):
 
     def on_created(self, event):  # type: ignore[override]
         if not event.is_directory:
-            self.enq.enqueue(Path(event.src_path))
+            self.enq.enqueue(Path(event.src_path), reason="created")
 
     def on_modified(self, event):  # type: ignore[override]
         if not event.is_directory:
-            self.enq.enqueue(Path(event.src_path))
+            self.enq.enqueue(Path(event.src_path), reason="modified")
 
 
 def scan_inputs(inputs_dir: Path, enq: DebouncedEnqueuer) -> None:
     for p in inputs_dir.glob("**/*.md"):
-        enq.enqueue(p)
+        enq.enqueue(p, reason="scan")
 
 
 def watch_inputs(
@@ -239,7 +255,7 @@ def watch_inputs(
 ) -> None:
     q: queue.Queue[WatchJob] = queue.Queue()
     state = StateStore(state_path)
-    enq = DebouncedEnqueuer(q, debounce_seconds=debounce_seconds)
+    enq = DebouncedEnqueuer(q, debounce_seconds=debounce_seconds, event_log_path=event_log_path)
 
     worker = WatchWorker(
         q,
