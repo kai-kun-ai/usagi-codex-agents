@@ -191,8 +191,10 @@ class WatchWorker:
         if not spec.objective:
             spec.objective = raw_text.strip()
 
+        # プロジェクト名でサブディレクトリを分ける
+        project = spec.project or "default"
         job_id = f"{int(time.time())}-{p.stem}"
-        workdir = self.work_root / job_id
+        workdir = self.work_root / project / job_id
         workdir.mkdir(parents=True, exist_ok=True)
 
         # announce + status

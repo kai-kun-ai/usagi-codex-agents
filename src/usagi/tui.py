@@ -478,7 +478,7 @@ class UsagiTui(App):
             watch_inputs(
                 inputs_dir=self.root / "inputs",
                 outputs_dir=self.root / "outputs",
-                work_root=self.root / "work",
+                work_root=self.root / "git",
                 state_path=self.root / ".usagi/state.json",
                 debounce_seconds=0.25,
                 model=self.model,
