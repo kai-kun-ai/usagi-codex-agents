@@ -14,12 +14,37 @@ memory = "memories/boss.md"
 [[agents]]
 id = "ghost"
 name = "ゴースト社長"
-emoji = "👻"
+emoji = "🐰"
 role = "ghost_boss"
 model = "codex"
 reports_to = "boss"
 personality = "personalities/ghost_boss.md"
 memory = "memories/ghost_boss.md"
+
+# 社長人格（投票用）: bossを除いて3人格
+[[agents]]
+id = "boss_cons"
+name = "保守派社長"
+emoji = "🐰"
+role = "ghost_boss"
+model = "codex"
+reports_to = "boss"
+
+[[agents]]
+id = "boss_chal"
+name = "挑戦派社長"
+emoji = "🐰"
+role = "ghost_boss"
+model = "codex"
+reports_to = "boss"
+
+[[agents]]
+id = "boss_rel"
+name = "関係重視社長"
+emoji = "🐰"
+role = "ghost_boss"
+model = "codex"
+reports_to = "boss"
 
 # 秘書エージェント（社長と直接会話せず、秘書を介して input.md を作る想定）
 [[agents]]
