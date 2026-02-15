@@ -110,26 +110,25 @@ def _focused_window_label(focused: object | None) -> str:
         return "mode"
     if focused_id == "secretary_input":
         return "秘書入力"
-    if focused_id == "secretary_to_input":
-        return "社長に渡す"
+    # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
     if focused_id == "inputs":
         return "入力"
 
     # Children can have focus; try to resolve by ancestor.
     try:
-        if getattr(focused, "has_ancestor")("#inputs"):
+        if focused.has_ancestor("#inputs"):
             return "入力"
     except Exception:
         pass
 
     try:
-        if getattr(focused, "has_ancestor")("#secretary_scroll"):
+        if focused.has_ancestor("#secretary_scroll"):
             return "秘書ログ"
     except Exception:
         pass
 
     try:
-        if getattr(focused, "has_ancestor")("#org_scroll"):
+        if focused.has_ancestor("#org_scroll"):
             return "組織図"
     except Exception:
         pass
@@ -337,9 +336,10 @@ class UsagiTui(App):
     #main { height: 1fr; }
     #top { height: 1fr; }
     #left, #right { width: 1fr; height: 1fr; }
+    #left_scroll { height: 1fr; }
 
     /* NOTE: events は下部に固定高で確保する（入力欄が縦に伸びても重ならないように） */
-    #events { height: 12; border: solid green; padding: 0 1; }
+    #events { height: 6; border: solid green; padding: 0 1; }
     #focus_status { height: 3; border: solid cyan; padding: 0 1; }
     #mode { border: solid white; background: $boost; text-style: bold; }
     /* statusウィンドウは廃止（組織図へ統合） */
@@ -366,11 +366,7 @@ class UsagiTui(App):
         max-height: 10;
     }
 
-    #secretary_to_input {
-        background: $accent;
-        color: $text;
-        width: 18;
-    }
+    /* secretary_to_input button removed: Ctrl+B shortcut only */
 
     #mode:focus {
         border: heavy yellow;
@@ -380,7 +376,7 @@ class UsagiTui(App):
 
     BINDINGS = [
         ("ctrl+s", "toggle", "Start/Stop"),
-        ("ctrl+b", "secretary_to_input", "社長に渡す（ボタンと同じ）"),
+        ("ctrl+b", "secretary_to_input", "社長に渡す（提出）"),
         ("d", "delete_input", "Delete selected input"),
         ("q", "quit", "Quit"),
     ]
@@ -414,31 +410,31 @@ class UsagiTui(App):
                         mode_btn.border_title = "mode"
                         yield mode_btn
 
-                        with VerticalScroll(id="secretary_scroll"):
-                            chat = _SecretaryChatBox(id="secretary_chat")
-                            chat.border_title = "秘書(🐻)との対話"
-                            yield chat
+                        # NOTE: 左ペインの中身はスクロールさせ、下部events領域と重ならないようにする
+                        with VerticalScroll(id="left_scroll"):
+                            with VerticalScroll(id="secretary_scroll"):
+                                chat = _SecretaryChatBox(id="secretary_chat")
+                                chat.border_title = "秘書(🐻)との対話"
+                                yield chat
 
-                        # NOTE: 狭い端末でボタンが押し出されないよう縦積みにする
-                        with Container(id="secretary_controls"):
-                            yield Input(
-                                placeholder=(
-                                    "ここに日本語で入力 → Enter で送信"
-                                    "（例: 次のタスクを整理して）"
-                                ),
-                                id="secretary_input",
+                            with Container(id="secretary_controls"):
+                                yield Input(
+                                    placeholder=(
+                                        "ここに日本語で入力 → Enter で送信"
+                                        "（例: 次のタスクを整理して）"
+                                    ),
+                                    id="secretary_input",
+                                )
+                                # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
+                                yield Static("Ctrl+B: 社長に渡す", id="secretary_to_hint")
+
+                            inputs_box = _InputsBox(
+                                inputs_dir=self.root / "inputs",
+                                state_path=self.root / ".usagi/state.json",
+                                id="inputs",
                             )
-                            with Horizontal(id="secretary_controls_buttons"):
-                                yield Button("社長に渡す", id="secretary_to_input")
-                                yield Static("Ctrl+B", id="secretary_to_hint")
-
-                        inputs_box = _InputsBox(
-                            inputs_dir=self.root / "inputs",
-                            state_path=self.root / ".usagi/state.json",
-                            id="inputs",
-                        )
-                        inputs_box.border_title = "入力"
-                        yield inputs_box
+                            inputs_box.border_title = "入力"
+                            yield inputs_box
 
                     with Container(id="right"):
                         with VerticalScroll(id="org_scroll"):
@@ -594,8 +590,6 @@ class UsagiTui(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "mode":
             self.action_toggle()
-        if event.button.id == "secretary_to_input":
-            self._secretary_to_input()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "secretary_input":
@@ -656,10 +650,20 @@ class UsagiTui(App):
             BossInput(source="secretary", text=f"秘書が input を設置しました: {p}"),
         )
 
+        # 提出したら秘書チャットをアーカイブしてクリア
+        archive = self.root / ".usagi/secretary.archive.log"
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open("a", encoding="utf-8") as f:
+            f.write(f"\n---\n[{ts}] submitted: {p.name}\n")
+            for line in dialog:
+                f.write(line + "\n")
+        log.write_text("", encoding="utf-8")
+
         events = self.root / ".usagi/events.log"
         events.parent.mkdir(parents=True, exist_ok=True)
         with events.open("a", encoding="utf-8") as f:
             f.write(f"[{ts}] secretary: placed input {p.name}\n")
+            f.write(f"[{ts}] secretary: archived+cleared chat\n")
 
         self._refresh()
 
