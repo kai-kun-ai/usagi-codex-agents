@@ -173,7 +173,16 @@ class UsagiTui(App):
     #inputs { height: auto; border: solid yellow; padding: 0 1; }
     #boss_chat { height: 12; border: solid magenta; padding: 0 1; }
     #org { height: 1fr; border: solid blue; padding: 0 1; }
-    .section-title { text-style: bold; }
+
+    #boss_input {
+        border: solid white;
+        background: $surface;
+    }
+
+    #boss_send {
+        background: $accent;
+        color: $text;
+    }
     """
 
     BINDINGS = [
@@ -273,7 +282,13 @@ class UsagiTui(App):
             return
 
         def _run() -> None:
-            run_demo_forever(DemoConfig(root=self.root, interval_seconds=1.0))
+            run_demo_forever(
+                DemoConfig(
+                    root=self.root,
+                    org_path=self.org_path,
+                    interval_seconds=1.0,
+                )
+            )
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()
