@@ -74,6 +74,16 @@ make demo                                      # Dockerで完全デモ起動（W
 
 このツールは **APIキー方式** だけでなく、**Codex/Claudeの公式CLIログイン（サブスク由来のトークン含む）** も使えるようにしています。
 
+### なぜ TUI（`make run` / `usagi tui`）だけではログインできない？
+
+usagi の TUI は「トークン文字列を入力してログインするUI」を持っていません。
+代わりに **Codex / Claude の公式CLIが作るログインセッション**（`/root/.codex` / `/root/.claude`）を利用します。
+そのため、**最初に公式CLIを起動してログイン（トークン取り込み）**しておく必要があります。
+
+### 重要: ログインと実行で同じ `PROFILE` を使う
+
+`make d-shell` でログインした `PROFILE` と、`make run` で起動する `PROFILE` が違うと、別ディレクトリがマウントされて「未ログイン」に見えます。
+
 - Codex: `/root/.codex`（ChatGPTログインセッション）
 - Claude: `/root/.claude`（Claude Codeログインセッション）
 
@@ -110,13 +120,21 @@ claude
 # ログイン状態は /root/.claude に保存され、ホスト側プロファイルに永続化される
 ```
 
-### 4) 実行
+### 4) 実行（同じ `PROFILE` で起動）
 
-ログインが完了したら、同じプロファイルをマウントした状態で `usagi` を実行します。
+ログインが完了したら、**同じプロファイルをマウントした状態**で `usagi` を実行します。
+
+おすすめ（ホスト側から TUI 起動）:
+
+```bash
+make run WORKDIR=$PWD PROFILE=alice OFFLINE=1
+```
+
+コンテナ内でコマンド単体を叩く場合（`make d-shell` で入っているとき）:
 
 ```bash
 # 例: 統合CUI
-usagi tui
+usagi tui --root /work --org /app/examples/org.toml --offline
 
 # 例: watch/autopilot
 usagi autopilot-start --offline
@@ -125,6 +143,21 @@ usagi autopilot-start --offline
 注意:
 - **トークン文字列を手でコピペして保存する必要はありません**。公式CLIのログイン状態がプロファイルディレクトリに保存されます。
 - `.usagi/sessions/**` の中身は秘密情報を含みうるため、**git管理しない**（.gitignore対象）前提です。
+
+### パスの前提（`WORKDIR` と `.usagi/sessions/**` の関係）
+
+`make run` / `make d-shell` は以下を前提に volume mount します:
+
+- `WORKDIR=<絶対パス>` → コンテナ内 `/work`
+  - usagi は `--root /work` で動くため、`inputs/`, `outputs/`, `.usagi/`（STOP/イベント等）は **WORKDIR配下**に作られます
+- `./.usagi/sessions/codex/<PROFILE>` → コンテナ内 `/root/.codex`
+- `./.usagi/sessions/claude/<PROFILE>` → コンテナ内 `/root/.claude`
+
+つまり、
+- 「作業データ（inputs/outputs/.usagi）」は **WORKDIR** 側
+- 「ログインセッション」は **このリポジトリの `.usagi/sessions/**`** 側
+
+に保存されます。
 
 ## ハンズオン
 

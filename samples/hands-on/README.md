@@ -54,6 +54,11 @@ make d-shell WORKDIR=$PWD PROFILE=alice
 
 ## 5. コンテナ内でサブスクログイン（トークン取り込み）
 
+`make run`（TUI）だけを起動しても、Codex/Claude の「ログイン画面」は出ません。
+**公式CLI（`codex` / `claude`）を一度起動してログインセッションを作る**必要があります。
+
+また、ログインした `PROFILE` と、後で `make run ... PROFILE=...` で起動する `PROFILE` は必ず揃えてください。
+
 ### 5.1 Codex（ChatGPTアカウント）
 
 ```bash
@@ -74,6 +79,15 @@ claude
 - 成功するとログイン状態が `/root/.claude` に保存されます（ホスト側のプロファイルへ永続化）。
 
 ## 6. usagi を起動して動作確認
+
+### 6.0 保存場所（`WORKDIR` とログインセッション）
+
+- `WORKDIR=$PWD` はコンテナ内 `/work` にマウントされ、usagi は `--root /work` で動きます。
+  - そのため、`inputs/`, `outputs/`, `.usagi/` は **リポジトリ直下（WORKDIR）**に作られます。
+- 一方、ログインセッション（`/root/.codex` / `/root/.claude`）は
+  `./.usagi/sessions/**/<PROFILE>` に永続化されます（リポジトリ側の別ディレクトリ）。
+
+「作業データ」と「ログインセッション」は置き場所が違う、という前提を押さえておくと迷いません。
 
 ### 6.1 統合CUI（おすすめ）
 
