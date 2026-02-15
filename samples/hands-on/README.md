@@ -12,13 +12,31 @@ git clone https://github.com/kai-kun-ai/usagi-codex-agents
 cd usagi-codex-agents
 ```
 
-## 1. Dockerイメージを作る
+## 1. （任意）Discord連携の環境変数を設定する
+
+Discord連携を使う場合は、ホスト側に環境変数を設定してから `make run` / `make d-shell` を実行してください（コンテナへ引き継がれます）。
+
+- Botトークン方式（受信/送信）:
+  - `USAGI_DISCORD_TOKEN`
+  - `USAGI_DISCORD_CHANNEL_ID`
+- Webhook方式（進捗投稿のみ / 任意）:
+  - `USAGI_DISCORD_WEBHOOK_URL`
+
+例（bash）:
+
+```bash
+export USAGI_DISCORD_TOKEN="..."
+export USAGI_DISCORD_CHANNEL_ID="123456789012345678"
+# export USAGI_DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+```
+
+## 2. Dockerイメージを作る
 
 ```bash
 make d-build
 ```
 
-## 2. ログインプロファイルを作る（Codex / Claude）
+## 3. ログインプロファイルを作る（Codex / Claude）
 
 例として `alice` というプロファイル名を使います。
 
@@ -26,7 +44,7 @@ make d-build
 mkdir -p .usagi/sessions/codex/alice .usagi/sessions/claude/alice
 ```
 
-## 3. プロファイルをマウントしてコンテナに入る
+## 4. プロファイルをマウントしてコンテナに入る
 
 以降は `WORKDIR` を絶対パスで指定します（例: リポジトリ直下）。
 
@@ -34,7 +52,7 @@ mkdir -p .usagi/sessions/codex/alice .usagi/sessions/claude/alice
 make d-shell WORKDIR=$PWD PROFILE=alice
 ```
 
-## 4. コンテナ内でサブスクログイン（トークン取り込み）
+## 5. コンテナ内でサブスクログイン（トークン取り込み）
 
 ### 4.1 Codex（ChatGPTアカウント）
 
@@ -55,7 +73,7 @@ claude
 - 環境によっては `claude setup-token` の運用になります。
 - 成功するとログイン状態が `/root/.claude` に保存されます（ホスト側のプロファイルへ永続化）。
 
-## 5. usagi を起動して動作確認
+## 6. usagi を起動して動作確認
 
 ### 5.1 統合CUI（おすすめ）
 
@@ -108,7 +126,7 @@ make d-shell WORKDIR=$PWD PROFILE=alice
 usagi autopilot-start
 ```
 
-## 6. STOP（停止）
+## 7. STOP（停止）
 
 - CUIの `s` か、
 - 別ターミナルで `usagi autopilot-stop`
