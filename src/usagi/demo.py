@@ -17,12 +17,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from usagi.autopilot import stop_requested
+from usagi.display import display_name
+from usagi.org import load_org
 from usagi.state import AgentStatus, load_status, save_status
 
 
 @dataclass
 class DemoConfig:
     root: Path
+    org_path: Path | None = None
     interval_seconds: float = 1.0
 
 
@@ -42,13 +45,22 @@ def run_demo_forever(cfg: DemoConfig) -> None:
     events = root / ".usagi/events.log"
     status_path = root / ".usagi/status.json"
 
-    rabbits = [
-        ("boss", "社長うさぎ"),
-        ("manager", "主任うさぎ"),
-        ("worker-1", "新人うさぎA"),
-        ("worker-2", "新人うさぎB"),
-        ("reviewer", "監査うさぎ"),
-    ]
+    agents: list[tuple[str, str]]
+    if cfg.org_path and cfg.org_path.exists():
+        try:
+            org = load_org(cfg.org_path)
+            agents = [(a.id, display_name(a)) for a in org.agents]
+        except Exception:
+            agents = [("boss", "🐰 社長うさぎ")]
+    else:
+        agents = [
+            ("boss", "🐰 社長うさぎ"),
+            ("dev_mgr", "🦊 開発部長キツネ"),
+            ("w1", "🐿️ 実装リスA"),
+            ("w2", "🐿️ 実装リスB"),
+            ("qa_mgr", "🦝 品質部長アライグマ"),
+            ("rev1", "🦉 監査フクロウ"),
+        ]
 
     step_msgs = [
         "仕様を読み込み中…",
@@ -82,7 +94,7 @@ def run_demo_forever(cfg: DemoConfig) -> None:
 
         # update status
         st = load_status(status_path)
-        for agent_id, name in rabbits:
+        for agent_id, name in agents:
             # boss tends to be working
             working = random.random() < (0.6 if agent_id == "boss" else 0.35)
             state = "working" if working else "idle"
