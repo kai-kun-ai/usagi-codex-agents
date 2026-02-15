@@ -7,6 +7,22 @@
 - Discord連携: **discord.py**（OpenClaw非依存）
 - Codex/Claude: 公式CLIをDockerに同梱（プロファイルをvolumeで切替）
 
+## 前提ツール（Docker運用）
+
+本格運用（`make d-test` / `make run` / `make demo` など）は、ホスト環境に以下が入っている前提です。
+
+- **Docker**（Docker Engine / Docker Desktop など）
+- **Docker Compose v2**（`docker compose` が使えること）
+- **GNU Make**（`make` コマンド）
+
+動作確認例:
+
+```bash
+docker --version
+docker compose version
+make --version
+```
+
 ## ローカルpip（デバッグ用途）
 
 ローカルで `pip` 実行する場合の要件:
