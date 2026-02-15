@@ -23,6 +23,7 @@ RUN pip install -U pip && pip install -r requirements.txt
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY tests ./tests
+COPY examples ./examples
 
 RUN pip install .
 

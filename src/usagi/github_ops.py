@@ -19,13 +19,17 @@ class Gh:
     repo_path: Path
 
     def run(self, args: list[str]) -> str:
-        proc = subprocess.run(
-            ["gh", *args],
-            cwd=self.repo_path,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        try:
+            proc = subprocess.run(
+                ["gh", *args],
+                cwd=self.repo_path,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError("gh not available") from e
+
         if proc.returncode != 0:
             raise RuntimeError(proc.stderr.strip() or "gh failed")
         return proc.stdout.strip()
