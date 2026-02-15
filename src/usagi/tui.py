@@ -315,7 +315,10 @@ class UsagiTui(App):
 
                     with Horizontal(id="secretary_controls"):
                         yield Input(
-                            placeholder="ここに日本語で入力 → Enter で送信（例: 次のタスクを整理して）",
+                            placeholder=(
+                                "ここに日本語で入力 → Enter で送信"
+                                "（例: 次のタスクを整理して）"
+                            ),
                             id="secretary_input",
                         )
                         yield Button("社長に渡す", id="secretary_to_input")
