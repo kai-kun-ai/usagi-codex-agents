@@ -9,12 +9,12 @@ from rich.console import Console
 
 from usagi.autopilot import clear_stop, request_stop
 from usagi.boss_inbox import BossInput, write_boss_input
+from usagi.logging_setup import setup_logging
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
 from usagi.state import load_status
 from usagi.tui import run_tui
 from usagi.validate import validate_spec
-from usagi.logging_setup import setup_logging
 from usagi.watch import watch_inputs
 
 APP_HELP = "🐰 うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI"
@@ -58,21 +58,11 @@ def run(
         ...,
         help="指示書Markdownへのパス (例: specs/sample.md)",
     ),
-    out: Path | None = typer.Option(
-        None, "--out", help="出力レポートMarkdownのパス"
-    ),
-    workdir: Path = typer.Option(
-        Path("."), "--workdir", help="作業ディレクトリ"
-    ),
-    model: str = typer.Option(
-        "codex", "--model", help="利用モデル (例: codex / gpt-4.1)"
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="実行せずに計画だけ出す"
-    ),
-    offline: bool = typer.Option(
-        False, "--offline", help="APIを呼ばずにダミーで動作確認"
-    ),
+    out: Path | None = typer.Option(None, "--out", help="出力レポートMarkdownのパス"),
+    workdir: Path = typer.Option(Path("."), "--workdir", help="作業ディレクトリ"),
+    model: str = typer.Option("codex", "--model", help="利用モデル (例: codex / gpt-4.1)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="実行せずに計画だけ出す"),
+    offline: bool = typer.Option(False, "--offline", help="APIを呼ばずにダミーで動作確認"),
 ) -> None:
     """Markdown指示書→マルチエージェント実行→レポート出力。"""
     setup_logging(root=Path("."), level="INFO")
@@ -227,8 +217,8 @@ def retrain_propose(
     """再教育提案を作成し、承認者へ投げる（変更は適用しない）。"""
 
     from usagi.org import load_org
-    from usagi.runtime import load_runtime
     from usagi.retrain import propose_retrain
+    from usagi.runtime import load_runtime
 
     root = root.resolve()
     outputs_dir = root / "outputs"
@@ -256,8 +246,8 @@ def retrain_decide(
     """再教育提案を承認/投票し、承認されたらパッチを適用する。"""
 
     from usagi.org import load_org
-    from usagi.runtime import load_runtime
     from usagi.retrain import decide_and_apply
+    from usagi.runtime import load_runtime
 
     root = root.resolve()
     outputs_dir = root / "outputs"

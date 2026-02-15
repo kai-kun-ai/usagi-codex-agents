@@ -132,10 +132,14 @@ class SecretaryAgent:
         report_md = ""
         if report_path.exists():
             report_md = report_path.read_text(encoding="utf-8")
-            report_md = compact_for_prompt(report_md, stage="secretary_report_for_summary", max_chars=2500)
+            report_md = compact_for_prompt(
+                report_md, stage="secretary_report_for_summary", max_chars=2500
+            )
 
         last_input = _read_last_input_from_report(self.config.root, report_path)
-        last_input = compact_for_prompt(last_input, stage="secretary_last_input_for_summary", max_chars=1800)
+        last_input = compact_for_prompt(
+            last_input, stage="secretary_last_input_for_summary", max_chars=1800
+        )
 
         prompt = (
             f"{SECRETARY_SYSTEM_PROMPT}\n\n"
@@ -216,12 +220,7 @@ def format_input_from_dialog(
     summary: str | None = None,
 ) -> str:
     if summary:
-        return (
-            "---\n"
-            f"project: {title}\n"
-            "---\n\n"
-            f"{summary}\n"
-        )
+        return f"---\nproject: {title}\n---\n\n{summary}\n"
     body = "\n".join(dialog_lines).strip()
     return (
         "# usagi spec\n\n"
@@ -270,7 +269,9 @@ def place_input_for_boss(
     p = inputs_dir / f"{ts}.md"
     p.write_text(
         format_input_from_dialog(
-            title=title, dialog_lines=dialog_lines, summary=summary,
+            title=title,
+            dialog_lines=dialog_lines,
+            summary=summary,
         ),
         encoding="utf-8",
     )

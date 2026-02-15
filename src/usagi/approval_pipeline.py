@@ -24,16 +24,16 @@ from pathlib import Path
 from usagi.agents import AgentMessage, CodexCLIBackend, LLMBackend, OfflineBackend, UsagiAgent
 from usagi.approval import Assignment, assign_default
 from usagi.artifacts import write_artifact
-from usagi.prompt_compact import compact_for_prompt
 from usagi.git_ops import team_branch
+from usagi.mailbox import deliver_markdown
 from usagi.org import AgentDef, Organization
+from usagi.prompt_compact import compact_for_prompt
 from usagi.report import render_report
 from usagi.report_state import update_boss_report
 from usagi.runtime import RuntimeMode
 from usagi.secretary import place_input_for_boss
 from usagi.spec import UsagiSpec
 from usagi.state import AgentStatus, load_status, save_status
-from usagi.mailbox import deliver_markdown
 from usagi.vote import Vote, decide_2of3, parse_decision
 
 
@@ -122,7 +122,7 @@ def run_approval_pipeline(
             lines = (plan.content or "").splitlines()
             summary = ""
             decisions: list[str] = []
-            for i, line in enumerate(lines[:30]):
+            for _i, line in enumerate(lines[:30]):
                 if line.strip().startswith("## "):
                     continue
                 if line.strip():
@@ -196,10 +196,7 @@ def run_approval_pipeline(
         max_chars=runtime.compress.max_chars_default,
         enabled=runtime.compress.enabled,
     )
-    review_prompt = (
-        f"ワーカー差分(圧縮):\n\n{impl_compact}\n\n"
-        "判断: APPROVE / CHANGES_REQUESTED\n"
-    )
+    review_prompt = f"ワーカー差分(圧縮):\n\n{impl_compact}\n\n判断: APPROVE / CHANGES_REQUESTED\n"
     lead_review = lead_agent.run(user_prompt=review_prompt, model=model, backend=backend)
     msgs.append(lead_review)
     write_artifact(workdir, "30-lead-review.md", lead_review.content)
@@ -208,7 +205,9 @@ def run_approval_pipeline(
     approved_by_lead = "APPROVE" in lead_review.content.upper()
 
     # manager: merge decision (課ブランチをmainへ)
-    _set(manager.id, manager.name or manager.id, "working", f"decision: {spec.project or 'default'}")
+    _set(
+        manager.id, manager.name or manager.id, "working", f"decision: {spec.project or 'default'}"
+    )
     manager_agent = _agent_for(
         manager,
         role="planner",
@@ -483,7 +482,10 @@ def _run_worker_in_container(
     )
 
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".md", delete=False, encoding="utf-8",
+        mode="w",
+        suffix=".md",
+        delete=False,
+        encoding="utf-8",
     ) as f:
         f.write(prompt)
         prompt_path = Path(f.name)
@@ -499,27 +501,38 @@ def _run_worker_in_container(
         )
 
         cmd = [
-            "docker", "run", "--rm",
-            "-v", f"{prompt_path.resolve()}:/prompt.md:ro",
-            "-v", f"{workdir.resolve()}:/work",
-            "-w", "/work",
-            "--entrypoint", "codex",
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{prompt_path.resolve()}:/prompt.md:ro",
+            "-v",
+            f"{workdir.resolve()}:/work",
+            "-w",
+            "/work",
+            "--entrypoint",
+            "codex",
             image,
             "exec",
-            "--file", "/prompt.md",
+            "--file",
+            "/prompt.md",
         ]
 
-        # NOTE: docker CLI is required in the parent(usagi) image, and host docker.sock must be mounted.
+        # NOTE: docker CLI is required in the parent(usagi) image,
+        # and host docker.sock must be mounted.
 
         log.info("worker container cmd: %s", " ".join(cmd))
         r = subprocess.run(cmd, capture_output=True, text=True, check=False)
         log.info(
             "worker container done: code=%d stdout=%d stderr=%d",
-            r.returncode, len(r.stdout or ""), len(r.stderr or ""),
+            r.returncode,
+            len(r.stdout or ""),
+            len(r.stderr or ""),
         )
 
         # Failure diagnostics:
-        # - Do NOT include full stderr/stdout in the user-facing report by default (may contain secrets).
+        # - Do NOT include full stderr/stdout in the user-facing report
+        #   by default (may contain secrets).
         # - Instead, write a small tail to logs so operators can debug.
         if r.returncode != 0:
             stderr = r.stderr or ""
@@ -534,8 +547,7 @@ def _run_worker_in_container(
         if r.returncode != 0:
             content = (
                 f"(worker container failed with code {r.returncode})\n"
-                "See `.usagi/logs/usagi.log` for docker stderr tail.\n\n"
-                + content
+                "See `.usagi/logs/usagi.log` for docker stderr tail.\n\n" + content
             )
 
         return AgentMessage(

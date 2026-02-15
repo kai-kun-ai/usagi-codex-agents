@@ -51,4 +51,6 @@ def parse_mail_markdown(text: str) -> MailMessage:
                 title = line[2:].strip()
                 break
 
-    return MailMessage(kind=kind, title=title, from_agent=from_agent, to_agent=to_agent, body=body.strip())
+    return MailMessage(
+        kind=kind, title=title, from_agent=from_agent, to_agent=to_agent, body=body.strip()
+    )

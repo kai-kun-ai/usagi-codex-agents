@@ -64,9 +64,7 @@ def load_tokens(
     # 1. USAGI_API_KEYS (カンマ区切り)
     env_keys = os.environ.get("USAGI_API_KEYS", "")
     if env_keys:
-        keys.extend(
-            k.strip() for k in env_keys.split(",") if k.strip()
-        )
+        keys.extend(k.strip() for k in env_keys.split(",") if k.strip())
 
     # 2. OPENAI_API_KEY
     single = os.environ.get("OPENAI_API_KEY", "")
@@ -75,9 +73,7 @@ def load_tokens(
 
     # 3. TOML tokens section
     if toml_path and toml_path.exists():
-        raw = tomllib.loads(
-            toml_path.read_text(encoding="utf-8")
-        )
+        raw = tomllib.loads(toml_path.read_text(encoding="utf-8"))
         tokens_section = raw.get("tokens", {})
 
         # key_files: トークンファイルのリスト

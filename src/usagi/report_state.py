@@ -15,9 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from usagi.agents import AgentMessage
-from usagi.spec import UsagiSpec
 from usagi.report_sections import parse_section as _parse_section
-from usagi.report_sections import replace_section as _replace_section
+from usagi.spec import UsagiSpec
 
 
 @dataclass(frozen=True)
@@ -32,16 +31,18 @@ class ReportEntry:
     note: str
 
 
-def update_boss_report(*,
-                       outputs_dir: Path,
-                       spec: UsagiSpec,
-                       job_id: str,
-                       workdir: Path,
-                       input_rel: str,
-                       messages: list[AgentMessage] | None,
-                       note: str,
-                       boss_summary: str = "",
-                       boss_decisions: list[str] | None = None) -> Path:
+def update_boss_report(
+    *,
+    outputs_dir: Path,
+    spec: UsagiSpec,
+    job_id: str,
+    workdir: Path,
+    input_rel: str,
+    messages: list[AgentMessage] | None,
+    note: str,
+    boss_summary: str = "",
+    boss_decisions: list[str] | None = None,
+) -> Path:
     """outputs/report.md を更新する。"""
 
     outputs_dir.mkdir(parents=True, exist_ok=True)
@@ -86,7 +87,9 @@ def _extract_outcome(messages: list[AgentMessage]) -> tuple[bool, bool]:
     return lead_ok, merge_ok
 
 
-def _merge(existing: str, entry: ReportEntry, *, boss_summary: str, boss_decisions: list[str]) -> str:
+def _merge(
+    existing: str, entry: ReportEntry, *, boss_summary: str, boss_decisions: list[str]
+) -> str:
     todo = _parse_todo(existing)
     hist = _parse_history(existing)
     summary = _parse_section(existing, "## サマリ（社長）")
@@ -177,9 +180,9 @@ def _parse_todo(existing: str) -> dict[str, bool]:
             continue
         s = line.strip()
         if s.startswith("- [x] "):
-            todo[s[len("- [x] "):]] = True
+            todo[s[len("- [x] ") :]] = True
         elif s.startswith("- [ ] "):
-            todo[s[len("- [ ] "):]] = False
+            todo[s[len("- [ ] ") :]] = False
     # drop placeholder
     todo.pop("(なし)", None)
     return todo

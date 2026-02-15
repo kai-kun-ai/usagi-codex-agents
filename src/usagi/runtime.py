@@ -52,13 +52,6 @@ class AutopilotConfig:
 
 
 @dataclass
-class PromptCompression:
-    enabled: bool = True
-    max_chars_default: int = 2500
-    max_chars_vote: int = 3500
-
-
-@dataclass
 class RuntimeMode:
     name: str = "manual"
     merge: MergePolicy = field(default_factory=MergePolicy)

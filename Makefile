@@ -14,6 +14,12 @@ test:
 	ruff check .
 	pytest -q
 
+# Install test deps + run tests (no Docker required)
+test-local:
+	pip install -q -e . ruff pytest pytest-asyncio
+	ruff check .
+	pytest -q
+
 # ----------------
 # Docker (primary)
 # ----------------

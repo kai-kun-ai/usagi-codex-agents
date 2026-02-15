@@ -13,9 +13,9 @@ from usagi.agents import (
     KANSA_USAGI,
     SHACHO_USAGI,
     AgentMessage,
+    CodexCLIBackend,
     LLMBackend,
     OfflineBackend,
-    CodexCLIBackend,
 )
 from usagi.report import render_report
 from usagi.spec import UsagiSpec
@@ -46,9 +46,7 @@ def run_pipeline(
     messages: list[AgentMessage] = []
     started = datetime.now(tz=UTC).isoformat()
 
-    ui.section(
-        f"🐰 うさぎさん株式会社: 実行開始 / project={spec.project}"
-    )
+    ui.section(f"🐰 うさぎさん株式会社: 実行開始 / project={spec.project}")
     ui.log(f"workdir: {workdir}")
     ui.log(f"model: {model}")
     ui.log(f"dry-run: {dry_run} / offline: {offline}")
@@ -63,9 +61,7 @@ def run_pipeline(
             content="(dry-run: 計画スキップ)",
         )
     else:
-        plan_msg = SHACHO_USAGI.run(
-            user_prompt=plan_prompt, model=model, backend=backend
-        )
+        plan_msg = SHACHO_USAGI.run(user_prompt=plan_prompt, model=model, backend=backend)
     messages.append(plan_msg)
     plan_step.succeed("社長うさぎ: 計画完了")
 
@@ -83,13 +79,8 @@ def run_pipeline(
 
     # ── 実装うさぎ: 差分生成 ──
     impl_step = ui.step("🐰 実装うさぎが生成/編集案を作成中...")
-    impl_prompt = (
-        f"社長うさぎの計画:\n\n{plan_msg.content}\n\n"
-        f"プロジェクト名: {spec.project}"
-    )
-    impl_msg = JISSOU_USAGI.run(
-        user_prompt=impl_prompt, model=model, backend=backend
-    )
+    impl_prompt = f"社長うさぎの計画:\n\n{plan_msg.content}\n\nプロジェクト名: {spec.project}"
+    impl_msg = JISSOU_USAGI.run(user_prompt=impl_prompt, model=model, backend=backend)
     messages.append(impl_msg)
     impl_step.succeed("実装うさぎ: 変更案完了")
 
@@ -113,17 +104,21 @@ def run_pipeline(
         actions.append("git apply OK")
         apply_step.succeed("適用しました")
     except subprocess.CalledProcessError as e:
-        actions.append(
-            f"git apply FAILED: {e.stderr.strip()}"
-        )
+        actions.append(f"git apply FAILED: {e.stderr.strip()}")
         apply_step.fail("適用に失敗")
 
     # ── 監査うさぎ: レビュー ──
     review_step = ui.step("🐰 監査うさぎがレビュー中...")
     listing = subprocess.run(
         [
-            "find", ".", "-not", "-path", "./.git/*",
-            "-not", "-path", "./.git",
+            "find",
+            ".",
+            "-not",
+            "-path",
+            "./.git/*",
+            "-not",
+            "-path",
+            "./.git",
         ],
         cwd=workdir,
         text=True,
@@ -136,9 +131,7 @@ def run_pipeline(
         f"作業ディレクトリの内容:\n```\n{listing}\n```\n\n"
         f"レビューしてください。"
     )
-    review_msg = KANSA_USAGI.run(
-        user_prompt=review_prompt, model=model, backend=backend
-    )
+    review_msg = KANSA_USAGI.run(user_prompt=review_prompt, model=model, backend=backend)
     messages.append(review_msg)
     actions.append("review done")
     review_step.succeed("監査うさぎ: レビュー完了")
@@ -156,16 +149,8 @@ def run_pipeline(
 
 
 def _build_plan_prompt(spec: UsagiSpec) -> str:
-    tasks = (
-        "\n".join([f"- {t}" for t in spec.tasks])
-        if spec.tasks
-        else "(なし)"
-    )
-    constraints = (
-        "\n".join([f"- {c}" for c in spec.constraints])
-        if spec.constraints
-        else "(なし)"
-    )
+    tasks = "\n".join([f"- {t}" for t in spec.tasks]) if spec.tasks else "(なし)"
+    constraints = "\n".join([f"- {c}" for c in spec.constraints]) if spec.constraints else "(なし)"
     return (
         f"目的:\n{spec.objective}\n\n"
         f"背景:\n{spec.context}\n\n"

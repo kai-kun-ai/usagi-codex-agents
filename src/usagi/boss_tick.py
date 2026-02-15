@@ -57,7 +57,9 @@ def boss_tick(
 
         # extract decisions from report body (bullets)
         body_lines = msg.body.splitlines()
-        bullets = [ln.strip().lstrip("-").strip() for ln in body_lines if ln.strip().startswith("-")]
+        bullets = [
+            ln.strip().lstrip("-").strip() for ln in body_lines if ln.strip().startswith("-")
+        ]
         decisions = [sub_summary] + bullets[:15]
 
         # boss memory
@@ -65,11 +67,18 @@ def boss_tick(
             root,
             boss_id,
             f"report from {msg.from_agent} kind={msg.kind}",
-            compact_for_prompt(msg.body, stage="boss_memory_report", max_chars=2500, enabled=runtime.compress.enabled),
+            compact_for_prompt(
+                msg.body,
+                stage="boss_memory_report",
+                max_chars=2500,
+                enabled=runtime.compress.enabled,
+            ),
         )
 
         # Update report.md as CEO report
-        spec = UsagiSpec(project="usagi-project", objective=msg.title, tasks=[], constraints=[], context="")
+        spec = UsagiSpec(
+            project="usagi-project", objective=msg.title, tasks=[], constraints=[], context=""
+        )
         try:
             update_boss_report(
                 outputs_dir=outputs_dir,
@@ -96,7 +105,12 @@ def boss_tick(
                 to_agent="board",
                 kind="vote_request",
                 title=f"要判断: {msg.title}",
-                body=compact_for_prompt(msg.body, stage="boss_to_board", max_chars=3500, enabled=runtime.compress.enabled),
+                body=compact_for_prompt(
+                    msg.body,
+                    stage="boss_to_board",
+                    max_chars=3500,
+                    enabled=runtime.compress.enabled,
+                ),
             )
             append_human_judgement(
                 outputs_dir=outputs_dir,
