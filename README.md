@@ -16,28 +16,78 @@ make d-test    # Docker
 
 ## Codex / Claude login（複数セッション）
 
-- Codex: `/root/.codex`
-- Claude: `/root/.claude`
+このツールは **APIキー方式** だけでなく、**Codex/Claudeの公式CLIログイン（サブスク由来のトークン含む）** も使えるようにしています。
 
-プロファイル例（alice）:
+- Codex: `/root/.codex`（ChatGPTログインセッション）
+- Claude: `/root/.claude`（Claude Codeログインセッション）
+
+### 1) プロファイル（複数ログイン）ディレクトリを作る
+
+例: `alice` プロファイル
 
 ```bash
 mkdir -p .usagi/sessions/codex/alice .usagi/sessions/claude/alice
+```
+
+### 2) プロファイルを volume mount してコンテナに入る
+
+```bash
+docker build -t usagi-dev .
 
 docker run --rm -it \
   -v "$PWD":/app \
   -v "$PWD/.usagi/sessions/codex/alice":/root/.codex \
   -v "$PWD/.usagi/sessions/claude/alice":/root/.claude \
   usagi-dev bash
-
-# コンテナ内で
-codex   # 初回ログイン
-claude  # setup-token 等
 ```
+
+### 3) コンテナ内で公式CLIを使ってサブスクログイン（トークン取り込み）
+
+#### Codex（ChatGPTサブスクのログイン）
+
+```bash
+codex
+# 初回起動時にサインインが走る（ChatGPTアカウントでログイン）
+# ログイン状態は /root/.codex に保存され、ホスト側プロファイルに永続化される
+```
+
+#### Claude Code（Pro/Max/Teams/Enterprise のログイン）
+
+```bash
+claude
+# 初回セットアップでログインが走る
+# 手元運用によっては `claude setup-token` を使う
+# ログイン状態は /root/.claude に保存され、ホスト側プロファイルに永続化される
+```
+
+### 4) 実行
+
+ログインが完了したら、同じプロファイルをマウントした状態で `usagi` を実行します。
+
+```bash
+# 例: 統合CUI
+usagi tui
+
+# 例: watch/autopilot
+usagi autopilot-start --offline
+```
+
+注意:
+- **トークン文字列を手でコピペして保存する必要はありません**。公式CLIのログイン状態がプロファイルディレクトリに保存されます。
+- `.usagi/sessions/**` の中身は秘密情報を含みうるため、**git管理しない**（.gitignore対象）前提です。
 
 ## CLI（主要）
 
-- `usagi tui`（統合CUI。ここから start/stop/状態確認ができる）
+### 統合CUI
+
+- `usagi tui`
+  - `s`: Start/Stop（STOPファイルの作成/解除）
+  - うさぎの稼働状態（working/idle）とタスク
+  - inputs一覧（pending/processed）
+  - eventsログ
+
+### サブコマンド
+
 - `usagi run` / `usagi validate`
 - `usagi watch`
 - `usagi autopilot-start` / `usagi autopilot-stop`
