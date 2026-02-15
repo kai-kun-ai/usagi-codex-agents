@@ -241,27 +241,51 @@ class WatchWorker:
             # workerコンテナに実行を委譲
             from usagi.worker_container import run_approval_in_worker_container
 
-            self._event("worker_container start")
+            repo = Path(".").resolve()
+            spec_abs = p.resolve()
+            work_abs = workdir.resolve()
+            org_abs = org_file.resolve()
+            rt_abs = runtime_file.resolve()
+            self._event(f"worker_container start: spec={p.name}")
+            self._event(f"  repo={repo}")
+            self._event(f"  workdir={work_abs}")
+            self._event(f"  model={self.model}")
+            self._event(f"  org={org_abs}")
+            self._event(f"  runtime={rt_abs}")
+            self._event(f"  image_build={runtime.worker_image_build}")
+
             r = run_approval_in_worker_container(
-                repo_root=Path(".").resolve(),
-                spec_path=p.resolve(),
-                workdir=workdir.resolve(),
+                repo_root=repo,
+                spec_path=spec_abs,
+                workdir=work_abs,
                 model=self.model,
                 offline=False,
-                org_path=org_file.resolve(),
-                runtime_path=runtime_file.resolve(),
+                org_path=org_abs,
+                runtime_path=rt_abs,
                 image_build=runtime.worker_image_build,
             )
             self._event(f"worker_container end (code={r.returncode})")
 
+            # stderr の最後数行だけログに出す（秘密を含みにくい部分）
+            if r.stderr:
+                tail = r.stderr.strip().splitlines()[-5:]
+                for line in tail:
+                    self._event(f"  stderr: {line}")
+
             if r.returncode != 0:
-                # stdout/stderrをそのまま貼ると secrets の危険があるので最小限だけ
                 report = (
                     "# usagi watch: worker container failed\n\n"
                     f"- exit_code: {r.returncode}\n"
                 )
+                if r.stderr:
+                    # レポートにも stderr 末尾を含める
+                    err_tail = r.stderr.strip().splitlines()[-10:]
+                    report += "\n## stderr (tail)\n\n```\n"
+                    report += "\n".join(err_tail)
+                    report += "\n```\n"
                 res = type("_Res", (), {"report": report})
             else:
+                self._event(f"  stdout length={len(r.stdout)}")
                 res = type("_Res", (), {"report": r.stdout})
 
         self._write_report(p, res.report)
