@@ -153,16 +153,43 @@ class WatchWorker:
         if st.st_mtime_ns <= prev:
             return
 
-        spec = parse_spec_markdown(p.read_text(encoding="utf-8"))
-        vr = validate_spec(spec)
-        if not vr.ok:
-            # write validation report and mark processed
-            errors = "\n".join([f"- {e}" for e in vr.errors])
-            report = "# usagi watch: validation failed\n\n" + errors + "\n"
+        raw_text = p.read_text(encoding="utf-8")
+        try:
+            spec = parse_spec_markdown(raw_text)
+        except Exception:
+            # パースそのものが壊れた場合 → 読み込みエラー
+            report = (
+                "# usagi watch: 読み込みエラー\n\n"
+                "入力ファイルを解釈できませんでした。\n\n"
+                "## 元の内容\n\n```\n" + raw_text + "\n```\n"
+            )
             self._write_report(p, report)
             self.state.set_mtime_ns(p, st.st_mtime_ns)
             self.state.save()
             return
+
+        # 項目不足でも AI に咀嚼させるため strict=False
+        vr = validate_spec(spec)
+        if vr.warnings:
+            self._event(
+                f"warnings ({p.name}): "
+                + "; ".join(vr.warnings)
+            )
+        # spec の objective/tasks が空でも続行（AIが推測する）
+        if not spec.objective and not spec.tasks and not raw_text.strip():
+            # 本当に空の場合だけ弾く
+            report = (
+                "# usagi watch: 読み込みエラー\n\n"
+                "入力ファイルが空です。\n"
+            )
+            self._write_report(p, report)
+            self.state.set_mtime_ns(p, st.st_mtime_ns)
+            self.state.save()
+            return
+
+        # objective/tasks が空の場合、raw_text 全体を objective に入れる
+        if not spec.objective:
+            spec.objective = raw_text.strip()
 
         job_id = f"{int(time.time())}-{p.stem}"
         workdir = self.work_root / job_id
