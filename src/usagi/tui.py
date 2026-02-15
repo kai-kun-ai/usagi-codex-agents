@@ -23,6 +23,7 @@ from textual.widgets import Button, Footer, Header, Input, Static
 from usagi.autopilot import clear_stop, request_stop, stop_requested
 from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.demo import DemoConfig, run_demo_forever
+from usagi.org import load_org
 from usagi.state import load_status
 from usagi.watch import watch_inputs
 
@@ -159,9 +160,6 @@ class _OrgBox(Static):
             walk(r.id, r.name, 0)
 
         self.update("\n".join(lines))
-
-
-from usagi.org import load_org
 
 
 class UsagiTui(App):
