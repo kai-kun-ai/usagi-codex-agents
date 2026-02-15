@@ -25,6 +25,7 @@ from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.demo import DemoConfig, run_demo_forever
 from usagi.display import display_name
 from usagi.org import load_org
+from usagi.secretary import append_secretary_log, place_input_for_boss, secretary_log_path
 from usagi.state import load_status
 from usagi.watch import watch_inputs
 
@@ -124,6 +125,21 @@ class _BossChatBox(Static):
         self.update("\n".join(tail) if tail else "(no messages)")
 
 
+class _SecretaryChatBox(Static):
+    def update_text(self, root: Path, max_lines: int = 25) -> None:
+        log_path = secretary_log_path(root)
+        if not log_path.exists():
+            self.update("(秘書ログなし)")
+            return
+        try:
+            lines = log_path.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            self.update("(failed to read secretary log)")
+            return
+        tail = lines[-max_lines:]
+        self.update("\n".join(tail) if tail else "(秘書ログなし)")
+
+
 class _OrgBox(Static):
     def update_text(self, org_path: Path, status_path: Path) -> None:
         if not org_path.exists():
@@ -171,15 +187,15 @@ class UsagiTui(App):
     #events { height: 1fr; border: solid green; padding: 0 1; }
     #status { height: 1fr; border: solid cyan; padding: 0 1; }
     #inputs { height: auto; border: solid yellow; padding: 0 1; }
-    #boss_chat { height: 12; border: solid magenta; padding: 0 1; }
+    #secretary_chat { height: 12; border: solid magenta; padding: 0 1; }
     #org { height: 1fr; border: solid blue; padding: 0 1; }
 
-    #boss_input {
+    #secretary_input {
         border: solid white;
         background: $surface;
     }
 
-    #boss_send {
+    #secretary_send, #secretary_to_input {
         background: $accent;
         color: $text;
     }
@@ -217,11 +233,12 @@ class UsagiTui(App):
                     yield Button("▶ Start", id="start")
                     yield Button("■ Stop", id="stop")
 
-                    chat = _BossChatBox(id="boss_chat")
-                    chat.border_title = "社長チャット"
+                    chat = _SecretaryChatBox(id="secretary_chat")
+                    chat.border_title = "秘書(🐻)との対話"
                     yield chat
-                    yield Input(placeholder="社長へメッセージ…", id="boss_input")
-                    yield Button("Send", id="boss_send")
+                    yield Input(placeholder="秘書に伝える…", id="secretary_input")
+                    yield Button("秘書へ送信", id="secretary_send")
+                    yield Button("社長に渡す(input.md化)", id="secretary_to_input")
 
                     inputs_box = _InputsBox(id="inputs")
                     inputs_box.border_title = "入力"
@@ -241,9 +258,9 @@ class UsagiTui(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        # 入力フォーカス（社長チャットをすぐ打てるように）
+        # 入力フォーカス（秘書チャットをすぐ打てるように）
         try:
-            self.query_one("#boss_input", Input).focus()
+            self.query_one("#secretary_input", Input).focus()
         except Exception:
             pass
 
@@ -300,7 +317,7 @@ class UsagiTui(App):
             self.org_path,
             self.root / ".usagi/status.json",
         )
-        self.query_one(_BossChatBox).update_text(self.root / ".usagi/chat.log")
+        self.query_one(_SecretaryChatBox).update_text(self.root)
         self.query_one(_InputsBox).update_text(
             self.root / "inputs",
             self.root / ".usagi/state.json",
@@ -325,35 +342,56 @@ class UsagiTui(App):
             clear_stop(self.root)
         if event.button.id == "stop":
             request_stop(self.root)
-        if event.button.id == "boss_send":
-            self._send_boss_message()
+        if event.button.id == "secretary_send":
+            self._send_secretary_message()
+        if event.button.id == "secretary_to_input":
+            self._secretary_to_input()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "boss_input":
-            self._send_boss_message()
+        if event.input.id == "secretary_input":
+            self._send_secretary_message()
 
-    def _send_boss_message(self) -> None:
-        inp = self.query_one("#boss_input", Input)
+    def _send_secretary_message(self) -> None:
+        inp = self.query_one("#secretary_input", Input)
         text = (inp.value or "").strip()
         if not text:
             return
 
-        # write to boss inbox
-        p = write_boss_input(self.root, BossInput(source="tui", text=text))
+        append_secretary_log(self.root, who="you", text=text)
 
-        # append to chat log
-        chat = self.root / ".usagi/chat.log"
-        chat.parent.mkdir(parents=True, exist_ok=True)
-        ts = time.strftime("%Y-%m-%d %H:%M:%S")
-        with chat.open("a", encoding="utf-8") as f:
-            f.write(f"[{ts}] you: {text}\n")
-
-        # also to events
-        events = self.root / ".usagi/events.log"
-        with events.open("a", encoding="utf-8") as f:
-            f.write(f"[{ts}] boss_inbox: saved {p.name}\n")
+        # 簡易: 秘書からの返事は固定文（後続PRでLLM整形に差し替え）
+        append_secretary_log(
+            self.root,
+            who="🐻 secretary",
+            text="了解。社長に渡す内容として整理するね。",
+        )
 
         inp.value = ""
+        self._refresh()
+
+    def _secretary_to_input(self) -> None:
+        # secretary.log の末尾を input.md 化して inputs/ に配置
+        log = secretary_log_path(self.root)
+        if not log.exists():
+            return
+
+        lines = log.read_text(encoding="utf-8").splitlines()
+        # 直近だけ（長すぎ防止）
+        dialog = lines[-50:]
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        p = place_input_for_boss(self.root, title=f"secretary {ts}", dialog_lines=dialog)
+
+        # 既存のboss_inbox（社長が見るべき通知）にも入れておく
+        write_boss_input(
+            self.root,
+            BossInput(source="secretary", text=f"秘書が input を設置しました: {p}"),
+        )
+
+        events = self.root / ".usagi/events.log"
+        events.parent.mkdir(parents=True, exist_ok=True)
+        with events.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] secretary: placed input {p.name}\n")
+
         self._refresh()
 
 
