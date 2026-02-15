@@ -17,16 +17,34 @@ def test_valid_spec() -> None:
     assert result.warnings == []
 
 
-def test_missing_objective() -> None:
+def test_missing_objective_soft() -> None:
+    """デフォルト(soft)では目的が空でもok=Trueでwarningになる。"""
     spec = UsagiSpec(project="demo", objective="", tasks=["task1"])
     result = validate_spec(spec)
+    assert result.ok is True
+    assert any("目的" in w for w in result.warnings)
+
+
+def test_missing_objective_strict() -> None:
+    """strict=Trueでは目的が空ならエラーになる。"""
+    spec = UsagiSpec(project="demo", objective="", tasks=["task1"])
+    result = validate_spec(spec, strict=True)
     assert result.ok is False
     assert any("目的" in e for e in result.errors)
 
 
-def test_missing_tasks() -> None:
+def test_missing_tasks_soft() -> None:
+    """デフォルト(soft)ではやることが空でもok=Trueでwarningになる。"""
     spec = UsagiSpec(project="demo", objective="テスト", tasks=[])
     result = validate_spec(spec)
+    assert result.ok is True
+    assert any("やること" in w for w in result.warnings)
+
+
+def test_missing_tasks_strict() -> None:
+    """strict=Trueではやることが空ならエラーになる。"""
+    spec = UsagiSpec(project="demo", objective="テスト", tasks=[])
+    result = validate_spec(spec, strict=True)
     assert result.ok is False
     assert any("やること" in e for e in result.errors)
 

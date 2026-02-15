@@ -103,7 +103,7 @@ def run(
 def watch(
     inputs: Path = typer.Option(Path("inputs"), "--inputs", help="監視する入力フォルダ"),
     outputs: Path = typer.Option(Path("outputs"), "--outputs", help="レポート出力フォルダ"),
-    work_root: Path = typer.Option(Path("work"), "--work-root", help="作業フォルダ"),
+    work_root: Path = typer.Option(Path("git"), "--work-root", help="作業フォルダ"),
     state: Path = typer.Option(Path(".usagi/state.json"), "--state", help="処理済み状態ファイル"),
     debounce: float = typer.Option(0.25, "--debounce", help="デバウンス秒"),
     recursive: bool = typer.Option(True, "--recursive/--no-recursive", help="サブフォルダも監視"),
@@ -136,7 +136,7 @@ def watch(
 def autopilot_start(
     inputs: Path = typer.Option(Path("inputs"), "--inputs", help="入力フォルダ"),
     outputs: Path = typer.Option(Path("outputs"), "--outputs", help="出力フォルダ"),
-    work_root: Path = typer.Option(Path("work"), "--work-root", help="作業フォルダ"),
+    work_root: Path = typer.Option(Path("git"), "--work-root", help="作業フォルダ"),
     state: Path = typer.Option(Path(".usagi/state.json"), "--state", help="状態ファイル"),
     model: str = typer.Option("codex", "--model", help="利用モデル"),
     offline: bool = typer.Option(False, "--offline", help="APIを呼ばずに動作確認"),

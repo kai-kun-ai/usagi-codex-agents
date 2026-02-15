@@ -1,4 +1,8 @@
-"""指示書Markdownのバリデーション。"""
+"""指示書Markdownのバリデーション。
+
+フォーマットが不足していても AI で咀嚼する方針。
+strict=True にすると従来通りエラーにする（テスト用）。
+"""
 
 from __future__ import annotations
 
@@ -14,16 +18,28 @@ class ValidationResult:
     errors: list[str]
 
 
-def validate_spec(spec: UsagiSpec) -> ValidationResult:
-    """指示書の内容を検証して問題点を返す。"""
+def validate_spec(spec: UsagiSpec, *, strict: bool = False) -> ValidationResult:
+    """指示書の内容を検証して問題点を返す。
+
+    strict=False（デフォルト）: 不足項目は warnings に格下げし ok=True を返す。
+    strict=True: 従来通り errors にして ok=False にする。
+    """
     errors: list[str] = []
     warnings: list[str] = []
 
     if not spec.objective:
-        errors.append("「目的」セクションが空です。")
+        msg = "「目的」セクションが空です。"
+        if strict:
+            errors.append(msg)
+        else:
+            warnings.append(msg + "AIが内容から推測します。")
 
     if not spec.tasks:
-        errors.append("「やること」セクションが空です。少なくとも1つのタスクを指定してください。")
+        msg = "「やること」セクションが空です。"
+        if strict:
+            errors.append(msg + "少なくとも1つのタスクを指定してください。")
+        else:
+            warnings.append(msg + "AIが内容から推測します。")
 
     if not spec.project or spec.project == "usagi-project":
         warnings.append(

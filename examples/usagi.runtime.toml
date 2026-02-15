@@ -34,6 +34,11 @@ use_worker_container = true
 # - never: 無ければエラー
 worker_image_build = "auto"
 
+# inputs/ の処理後の挙動
+# - keep: inputsに残す（デフォルト）
+# - trash: .usagi/trash/inputs/ に移動（復元可能）
+input_postprocess = "trash"
+
 [autopilot]
 enabled = false
 inputs_dir = "inputs"

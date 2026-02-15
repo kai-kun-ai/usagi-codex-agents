@@ -40,6 +40,7 @@ def test_worker_ignores_non_md(tmp_path: Path) -> None:
 
     w = WatchWorker(
         q,
+        inputs_dir=tmp_path,
         outputs_dir=outputs,
         work_root=work,
         state=st,
@@ -67,6 +68,7 @@ def test_worker_processes_spec_and_writes_report(tmp_path: Path) -> None:
 
     w = WatchWorker(
         q,
+        inputs_dir=tmp_path,
         outputs_dir=outputs,
         work_root=work,
         state=st,

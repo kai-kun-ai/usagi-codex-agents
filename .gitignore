@@ -12,3 +12,6 @@ node_modules/
 
 # secrets/session state
 .usagi/
+
+# generated source code (per-project work trees)
+git/
