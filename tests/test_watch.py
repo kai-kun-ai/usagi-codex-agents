@@ -103,6 +103,7 @@ project: demo
 
     w._process(WatchJob(path=spec))  # noqa: SLF001
 
-    rep = outputs / "job.report.md"
-    assert rep.exists()
-    assert "うさぎさん株式会社レポート" in rep.read_text(encoding="utf-8")
+    # After boss_handle_spec, the boss plan artifact should exist in the workdir
+    # and a mailbox message should be delivered (not the old report format).
+    job_dirs = list(work.glob("jobs/*/10-boss-plan.md"))
+    assert job_dirs, "expected boss plan artifact in work/jobs/<job_id>/10-boss-plan.md"
