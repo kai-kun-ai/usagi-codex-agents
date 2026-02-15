@@ -12,9 +12,9 @@ from usagi.boss_inbox import BossInput, write_boss_input
 from usagi.pipeline import run_pipeline
 from usagi.spec import parse_spec_markdown
 from usagi.state import load_status
+from usagi.tui import run_tui
 from usagi.validate import validate_spec
 from usagi.watch import watch_inputs
-from usagi.tui import run_tui
 
 APP_HELP = "🐰 うさぎさん株式会社: Markdown指示で動くCodex向けマルチエージェントCLI"
 
