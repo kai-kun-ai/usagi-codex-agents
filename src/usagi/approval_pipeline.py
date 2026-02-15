@@ -55,6 +55,7 @@ def run_approval_pipeline(
     runtime: RuntimeMode,
     root: Path,
     status_path: Path | None = None,
+    repo_root: Path | None = None,
 ) -> ApprovalRunResult:
     backend: LLMBackend = OfflineBackend() if offline else CodexCLIBackend()
     started = datetime.now(tz=UTC).isoformat()
@@ -102,14 +103,15 @@ def run_approval_pipeline(
     _set("boss", boss.name or boss.id, "idle", "")
 
     # worker: implement (差分)
-    # use_worker_container が有効ならコンテナ内で実行
+    # DooD は複雑なため、まずは worktree 方式（ローカルgit）に寄せる。
     _set("worker", worker.name or worker.id, "working", f"impl: {spec.project or 'default'}")
-    impl = _run_worker_step(
+    impl = _run_worker_step_worktree(
         worker=worker,
         lead=lead,
         plan=plan,
         spec=spec,
         workdir=workdir,
+        repo_root=repo_root or workdir,
         model=model,
         backend=backend,
         runtime=runtime,
@@ -172,6 +174,21 @@ def run_approval_pipeline(
 
     decision_text = manager_decision.content.upper()
 
+    # MERGE_OK の場合は main に反映し、teamブランチを削除（部長判断がトリガ）
+    if approved_by_lead and ("MERGE_OK" in decision_text):
+        try:
+            from usagi.git_ops import GitRepo
+
+            base_repo = (repo_root or workdir) / ".usagi" / "repo"
+            wt_dir = (repo_root or workdir) / ".usagi" / "worktrees" / team_branch(lead.id)
+            repo = GitRepo(base_repo)
+            repo.merge_to_main_and_delete_branch(team_branch(lead.id))
+            repo.worktree_remove(wt_dir)
+            actions.append(f"git merge main <= {team_branch(lead.id)}")
+            actions.append(f"git branch delete {team_branch(lead.id)}")
+        except Exception as e:  # noqa: BLE001
+            actions.append(f"merge/delete failed: {type(e).__name__}: {e}")
+
     # critical path: escalation or lead did not approve
     need_vote = (not approved_by_lead) or ("ESCALATE_TO_BOSS" in decision_text)
 
@@ -226,60 +243,97 @@ def run_approval_pipeline(
     return ApprovalRunResult(report=report, messages=msgs, assignment=assignment)
 
 
-def _run_worker_step(
+def _run_worker_step_worktree(
     *,
     worker: AgentDef,
     lead: AgentDef,
     plan: AgentMessage,
     spec: UsagiSpec,
     workdir: Path,
+    repo_root: Path,
     model: str,
     backend: LLMBackend,
     runtime: RuntimeMode,
     offline: bool,
 ) -> AgentMessage:
-    """ワーカーの実装ステップ。コンテナ or ローカルで実行。"""
+    """ワーカーの実装ステップ（worktree方式）。
+
+    - DoD/DooD を避け、git worktree + codex CLI で作業する
+    - 成果物は unified diff として返す
+    """
+
     import logging
+    import subprocess
+
+    from usagi.git_ops import GitRepo
 
     log = logging.getLogger(__name__)
 
-    if not offline and runtime.use_worker_container:
-        import shutil
+    team = team_branch(lead.id)
 
-        if shutil.which("docker") is None:
-            raise RuntimeError(
-                "docker CLI not found in PATH. "
-                "This run is configured to use worker containers (use_worker_container=true). "
-                "Install docker CLI in the usagi image or set use_worker_container=false."
-            )
+    # base repo: repo_root 配下に repo を作り、worktree はその横に切る
+    # layout:
+    # - <repo_root>/.usagi/repo/  (bareではない通常repo)
+    # - <repo_root>/.usagi/worktrees/<team>/ (worktree)
+    base_repo = repo_root / ".usagi" / "repo"
+    wt_dir = repo_root / ".usagi" / "worktrees" / team
 
-        log.info("worker step: using container")
-        return _run_worker_in_container(
-            worker=worker,
-            lead=lead,
-            plan=plan,
-            spec=spec,
-            workdir=workdir,
-            model=model,
-            runtime=runtime,
-        )
+    repo = GitRepo(base_repo)
+    base_repo.mkdir(parents=True, exist_ok=True)
+    repo.ensure_repo()
+    repo.ensure_initial_commit()
 
-    # ローカル実行（offline / dry-run / コンテナ無効時）
-    worker_agent = _agent_for(
-        worker,
-        role="coder",
-        system_prompt=(
-            "あなたはワーカー(worker)です。\n"
-            "課長のレビューを通すため、変更は小さく安全に。\n"
-            "変更は Unified diff 形式で出力してください。"
-        ),
-    )
-    impl_prompt = (
+    # worktree を作成（既にあれば使う）
+    repo.worktree_add(wt_dir, team)
+
+    # worker prompt
+    prompt = (
         f"社長の方針/計画:\n\n{plan.content}\n\n"
         f"プロジェクト名: {spec.project}\n"
-        f"課ブランチ: {team_branch(lead.id)}\n"
+        f"課ブランチ: {team}\n\n"
+        "作業はこの作業ディレクトリ上で行ってください。\n"
+        "最終的に `git diff` 相当の Unified diff 形式で出力してください。\n"
     )
-    return worker_agent.run(user_prompt=impl_prompt, model=model, backend=backend)
+
+    if offline:
+        # backend は offline のダミーだが、作業場だけは用意
+        content = backend.generate(prompt, model=model)
+        return AgentMessage(agent_name=worker.name or worker.id, role="coder", content=content)
+
+    # codex exec はカレントディレクトリのファイルに対して編集する想定
+    cmd = ["codex", "exec", prompt]
+    log.info("worker(worktree) cmd: %s", " ".join(cmd))
+    r = subprocess.run(cmd, cwd=wt_dir, text=True, capture_output=True, check=False)
+    if r.returncode != 0:
+        log.error("worker(worktree) failed: code=%d", r.returncode)
+        stderr_tail = "\n".join((r.stderr or "").splitlines()[-50:])
+        if stderr_tail:
+            log.error("worker(worktree) stderr tail:\n%s", stderr_tail)
+        return AgentMessage(
+            agent_name=worker.name or worker.id,
+            role="coder",
+            content=(
+                f"(worker worktree failed with code {r.returncode})\n"
+                "See `.usagi/logs/usagi.log` for stderr tail.\n"
+            ),
+        )
+
+    content = (r.stdout or "").strip()
+    if not content:
+        # safety: if codex didn't output diff, fall back to actual git diff
+        try:
+            diff = subprocess.run(
+                ["git", "diff"],
+                cwd=wt_dir,
+                text=True,
+                capture_output=True,
+                check=False,
+            ).stdout
+            content = diff.strip()
+        except Exception:
+            content = ""
+
+    return AgentMessage(agent_name=worker.name or worker.id, role="coder", content=content)
 
 
 def _run_worker_in_container(
