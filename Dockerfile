@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
   git bash curl ca-certificates \
   nodejs npm \
+  docker.io \
   && rm -rf /var/lib/apt/lists/*
 
 # Codex CLI (official)

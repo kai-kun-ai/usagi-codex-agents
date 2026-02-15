@@ -271,6 +271,7 @@ def watch_inputs(
     recursive: bool,
     org_path: Path | None = None,
     runtime_path: Path | None = None,
+    worker_pool_size: int = 5,
     stop_file: Path | None = None,
     status_path: Path | None = None,
     event_log_path: Path | None = None,
@@ -279,21 +280,30 @@ def watch_inputs(
     state = StateStore(state_path)
     enq = DebouncedEnqueuer(q, debounce_seconds=debounce_seconds, event_log_path=event_log_path)
 
-    worker = WatchWorker(
-        q,
-        outputs_dir=outputs_dir,
-        work_root=work_root,
-        state=state,
-        model=model,
-        dry_run=dry_run,
-        offline=offline,
-        org_path=org_path,
-        runtime_path=runtime_path,
-        status_path=status_path,
-        event_log_path=event_log_path,
-    )
-    t = threading.Thread(target=worker.run_forever, daemon=True)
-    t.start()
+    runtime = load_runtime(runtime_path)
+    pool_size = int(worker_pool_size or runtime.worker_pool_size or 5)
+    pool_size = max(1, min(pool_size, 20))
+
+    workers: list[WatchWorker] = []
+    threads: list[threading.Thread] = []
+    for _i in range(pool_size):
+        w = WatchWorker(
+            q,
+            outputs_dir=outputs_dir,
+            work_root=work_root,
+            state=state,
+            model=model,
+            dry_run=dry_run,
+            offline=offline,
+            org_path=org_path,
+            runtime_path=runtime_path,
+            status_path=status_path,
+            event_log_path=event_log_path,
+        )
+        workers.append(w)
+        t = threading.Thread(target=w.run_forever, daemon=True)
+        t.start()
+        threads.append(t)
 
     inputs_dir.mkdir(parents=True, exist_ok=True)
     scan_inputs(inputs_dir, enq)
@@ -308,9 +318,11 @@ def watch_inputs(
                 break
             time.sleep(0.5)
     except KeyboardInterrupt:
-        worker.stop()
+        for w in workers:
+            w.stop()
         obs.stop()
     finally:
-        worker.stop()
+        for w in workers:
+            w.stop()
         obs.stop()
         obs.join()

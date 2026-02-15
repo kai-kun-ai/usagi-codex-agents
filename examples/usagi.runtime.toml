@@ -23,6 +23,9 @@ docker_required = true
 # PR merge等の権限者（社長id）
 boss_id = "boss"
 
+# autopilot/watch で同時起動するworkerコンテナ数
+worker_pool_size = 5
+
 [autopilot]
 enabled = false
 inputs_dir = "inputs"
