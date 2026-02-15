@@ -96,7 +96,13 @@ make demo
 
 ### 6.2 inputs を投入して watch を動かす
 
-コンテナ内で、サンプル指示書を inputs に置きます:
+`make run WORKDIR=$PWD ...` で起動している場合、**usagi はコンテナ内で動いています**が、
+`WORKDIR`（リポジトリ直下）は **ホスト ↔ コンテナで volume 共有**されています。
+そのため、inputs を置く操作は **ホスト側で実行してOK** です（コンテナ内から実行しても同じ場所に書き込まれます）。
+
+#### A) すでに `make run` を起動している場合（おすすめ: ホスト側で実行）
+
+ホスト側（別ターミナル、リポジトリ直下）で、サンプル指示書を `inputs/` に置きます:
 
 ```bash
 mkdir -p inputs
@@ -108,6 +114,15 @@ cp samples/hands-on/specs/hello.md inputs/hello.md
 ```bash
 ls -la outputs
 cat outputs/hello.report.md
+```
+
+#### B) `make d-shell` でコンテナに入っている場合（コンテナ内で実行）
+
+コンテナ内でも同様に実行できます（同じ volume に書き込まれます）:
+
+```bash
+mkdir -p inputs
+cp samples/hands-on/specs/hello.md inputs/hello.md
 ```
 
 ### 6.3 オンライン（API/CLI）で動かす
