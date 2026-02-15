@@ -417,11 +417,7 @@ class UsagiTui(App):
 
                         # NOTE: 左ペインの中身はスクロールさせ、下部events領域と重ならないようにする
                         with VerticalScroll(id="left_scroll"):
-                            with VerticalScroll(id="secretary_scroll"):
-                                chat = _SecretaryChatBox(id="secretary_chat")
-                                chat.border_title = "秘書(🐻)との対話"
-                                yield chat
-
+                            # NOTE: 入力欄が縦に大きくなっても下部eventsと重ならないよう、先に配置する
                             with Container(id="secretary_controls"):
                                 yield Input(
                                     placeholder=(
@@ -432,6 +428,11 @@ class UsagiTui(App):
                                 )
                                 # 社長に渡す操作は Ctrl+B のみ（ボタン無し）
                                 yield Static("Ctrl+B: 社長に渡す", id="secretary_to_hint")
+
+                            with VerticalScroll(id="secretary_scroll"):
+                                chat = _SecretaryChatBox(id="secretary_chat")
+                                chat.border_title = "秘書(🐻)との対話"
+                                yield chat
 
                             inputs_box = _InputsBox(
                                 inputs_dir=self.root / "inputs",
