@@ -7,6 +7,28 @@
 - Discord連携: **discord.py**（OpenClaw非依存）
 - Codex/Claude: 公式CLIをDockerに同梱（プロファイルをvolumeで切替）
 
+## ローカルpip（デバッグ用途）
+
+ローカルで `pip` 実行する場合の要件:
+
+- **Python: >=3.13**（`pyproject.toml` の `requires-python` に準拠）
+
+最小セットアップ例（venv + editable install）:
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -r requirements.txt
+python -m pip install -e .
+
+# lint/test
+ruff check .
+pytest -q
+```
+
+※ 本格運用は Docker（`make d-test` / `make run`）を前提にしています。
+
 ## Discord連携（任意）
 
 Discord へ進捗を投稿したり、メンションを受け取って boss inbox に流す場合は、以下の環境変数が必要です。
