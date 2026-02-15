@@ -1,8 +1,7 @@
+import queue
 from pathlib import Path
 
 from usagi.watch import DebouncedEnqueuer, WatchJob
-
-import queue
 
 
 def test_debounced_enqueuer_writes_event(tmp_path: Path) -> None:
