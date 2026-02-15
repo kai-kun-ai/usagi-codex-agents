@@ -101,6 +101,7 @@ class WatchWorker:
         self,
         q: queue.Queue[WatchJob],
         *,
+        inputs_dir: Path,
         outputs_dir: Path,
         work_root: Path,
         state: StateStore,
@@ -113,6 +114,7 @@ class WatchWorker:
         event_log_path: Path | None = None,
     ) -> None:
         self.q = q
+        self.inputs_dir = inputs_dir
         self.outputs_dir = outputs_dir
         self.work_root = work_root
         self.state = state
@@ -245,6 +247,11 @@ class WatchWorker:
         self.state.set_mtime_ns(p, st.st_mtime_ns)
         self.state.save()
 
+        # inputs の後処理
+        runtime = load_runtime(self.runtime_path)
+        if runtime.input_postprocess == "trash":
+            self._trash_input(p)
+
     def _event(self, msg: str) -> None:
         if self.event_log_path is None:
             return
@@ -258,6 +265,22 @@ class WatchWorker:
         out = self.outputs_dir / f"{src.stem}.report.md"
         out.write_text(report, encoding="utf-8")
         return out
+
+    def _trash_input(self, p: Path) -> None:
+        """処理済み入力を .usagi/trash/inputs に移動する（復元可能）。"""
+        try:
+            rel = p.relative_to(self.inputs_dir)
+        except Exception:
+            rel = Path(p.name)
+
+        trash_root = self.inputs_dir.parent / ".usagi" / "trash" / "inputs"
+        dst = trash_root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            p.replace(dst)
+            self._event(f"input trashed: {rel}")
+        except Exception:
+            self._event(f"input trash failed: {p.name}")
 
 
 class _Handler(FileSystemEventHandler):
@@ -301,6 +324,12 @@ def watch_inputs(
     enq = DebouncedEnqueuer(q, debounce_seconds=debounce_seconds, event_log_path=event_log_path)
 
     runtime = load_runtime(runtime_path)
+
+    # 起動時にAPI疎通などを試す（失敗してもwatch自体は継続）
+    from usagi.startup_check import run_startup_check
+
+    run_startup_check(runtime=runtime, model=model, offline=offline, event_log_path=event_log_path)
+
     pool_size = int(worker_pool_size or runtime.worker_pool_size or 5)
     pool_size = max(1, min(pool_size, 20))
 
@@ -309,6 +338,7 @@ def watch_inputs(
     for _i in range(pool_size):
         w = WatchWorker(
             q,
+            inputs_dir=inputs_dir,
             outputs_dir=outputs_dir,
             work_root=work_root,
             state=state,
