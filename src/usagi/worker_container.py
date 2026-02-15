@@ -20,7 +20,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from usagi.org import ROLE_BOSS, ROLE_MANAGER, AgentDef, Organization
-from usagi.profiles import ProfileDef
+try:
+    # profiles.py が導入済みの場合はそれを使う
+    from usagi.profiles import ProfileDef  # type: ignore
+except Exception:  # pragma: no cover
+    # まだ profiles が無い環境でも動くように最小定義を持つ
+    @dataclass
+    class ProfileDef:  # type: ignore[no-redef]
+        name: str
+        codex_config: str = ""
+        docker_image: str = "usagi-worker:latest"
+        env: dict[str, str] = None  # type: ignore[assignment]
+
 
 
 @dataclass
@@ -144,13 +155,15 @@ def build_container_run_cmd(
     env_args: list[str] = []
 
     if profile:
-        image = profile.docker_image or image
-        if profile.codex_config:
+        image = getattr(profile, "docker_image", "") or image
+        codex_config = getattr(profile, "codex_config", "")
+        if codex_config:
             env_args.extend([
                 "-v",
-                f"{profile.codex_config}:/home/worker/.codex/config.toml:ro",
+                f"{codex_config}:/home/worker/.codex/config.toml:ro",
             ])
-        for k, v in profile.env.items():
+        extra_env = getattr(profile, "env", None) or {}
+        for k, v in extra_env.items():
             env_args.extend(["-e", f"{k}={v}"])
 
     cmd = [

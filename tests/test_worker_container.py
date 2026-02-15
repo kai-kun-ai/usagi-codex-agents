@@ -3,8 +3,7 @@
 from pathlib import Path
 
 from usagi.org import ROLE_BOSS, ROLE_MANAGER, ROLE_WORKER, AgentDef, Organization
-from usagi.profiles import ProfileDef
-from usagi.worker_container import BranchPolicy, WorkerBranch, build_container_run_cmd
+from usagi.worker_container import BranchPolicy, ProfileDef, WorkerBranch, build_container_run_cmd
 
 
 def test_branch_policy_merge_to_team() -> None:
