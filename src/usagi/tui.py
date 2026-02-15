@@ -367,6 +367,8 @@ class UsagiTui(App):
         if self.demo:
             self._ensure_demo_thread()
         self.set_interval(0.5, self._refresh)
+        # 初回描画直後に内容を埋める
+        self._refresh()
 
     def _ensure_watch_thread(self) -> None:
         if self._watch_thread is not None and self._watch_thread.is_alive():
