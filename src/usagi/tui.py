@@ -71,13 +71,15 @@ def _fallback_org_path(org_path: Path, root: Path) -> Path:
     project_roots = _discover_project_roots(root)
 
     candidates: list[Path] = []
-    # まず固定パス（docker image上のrepo）
-    candidates.append(Path("/app/examples/org.toml"))
-    # 次に見つかった project roots
+
+    # まず見つかった project roots（work root / cwd / __file__ 起点）
     for pr in project_roots:
         candidates.append(pr / "examples/org.toml")
         if not org_path.is_absolute():
             candidates.append(pr / org_path)
+
+    # 次に固定パス（docker image上のrepo）
+    candidates.append(Path("/app/examples/org.toml"))
 
     # root/workdir側
     candidates.append(root / "examples/org.toml")

@@ -31,4 +31,5 @@ def test_fallback_org_path_prefers_project_root(monkeypatch, tmp_path: Path) -> 
     monkeypatch.setattr(tui, "_repo_root", lambda: tmp_path / "site-packages")
 
     resolved = tui._fallback_org_path(Path("examples/org.toml"), repo_root)
+    # project root を優先して拾う
     assert resolved == ex
