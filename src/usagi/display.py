@@ -5,6 +5,7 @@ from __future__ import annotations
 from usagi.org import (
     ROLE_BOSS,
     ROLE_GHOST_BOSS,
+    ROLE_LEAD,
     ROLE_MANAGER,
     ROLE_REVIEWER,
     ROLE_WORKER,
@@ -17,6 +18,7 @@ def default_emoji_for_role(role: str) -> str:
         ROLE_BOSS: "🐰",
         ROLE_GHOST_BOSS: "👻",
         ROLE_MANAGER: "🦊",
+        ROLE_LEAD: "🦉",
         ROLE_WORKER: "🐿️",
         ROLE_REVIEWER: "🦉",
     }.get(role, "🐾")

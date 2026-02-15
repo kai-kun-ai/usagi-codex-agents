@@ -67,6 +67,15 @@ emoji = "🦝"
 role = "manager"
 model = "codex"
 reports_to = "boss"
+can_command = ["qa_lead"]
+
+[[agents]]
+id = "qa_lead"
+name = "品質課長フクロウ"
+emoji = "🦉"
+role = "lead"
+model = "codex"
+reports_to = "qa_mgr"
 can_command = ["rev1"]
 
 [[agents]]
@@ -75,7 +84,7 @@ name = "監査フクロウ"
 emoji = "🦉"
 role = "reviewer"
 model = "codex"
-reports_to = "qa_mgr"
+reports_to = "qa_lead"
 
 # 第2部門サンプル（運用/自動化）
 [[agents]]
